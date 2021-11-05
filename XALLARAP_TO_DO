@@ -1,0 +1,32 @@
+#
+
+xi_ra, xi_dec
+xi_period
+xi_E_N, xi_E_E
+xi_ecc
+xi_t_0
+
+* use cases
+* unit tests
+* ModelParameters:
+ - only for n_sources == 1 currently
+ - do not allow xallrap and parallax right now, just because the relative lens-source proper motion directions have to agree
+ - eccentricity and periastron time - both defined or neither defined
+ - _check_valid_combination_1_source and _check_valid_combination_1_source_* - four different functions:
+   -- _check_valid_combination_1_source - add parameters in allowed_keys
+   -- _check_valid_combination_1_source_Cassan08 - no changes there
+   -- _check_valid_combination_1_source_standard - add a call to new function _check_valid_combination_1_source_xallarap
+#   -- _check_valid_combination_1_source_1_lens - XXX; correct docstring
+#   -- _check_valid_combination_1_source_binary_lens - XXX
+   -- _check_valid_combination_1_source_xallarap - write code
+ - obvious constraints 
+ - __repr__
+ - @property/setter
+ - xi_E_mag
+ - .n_sources - note in docstrings that it's 1 for xallarap model, because n_sources in number of magnified models
+ - _valid_parameters and other related places
+ - III Kepler law to be applied?
+* Trajectory.get_xy
+* documents/parameter_names.tex
+
+
