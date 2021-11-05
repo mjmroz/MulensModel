@@ -279,88 +279,72 @@ class ModelParameters(object):
                 parameters_2[key] = value
         return (parameters_1, parameters_2)
 
-    def __repr__(self):
-        """A nice way to represent a ModelParameters object as a string"""
-
-        keys = set(self.parameters.keys())
-        if 'pi_E' in keys:
-            keys.remove('pi_E')
-            keys |= {'pi_E_E', 'pi_E_N'}
-
-        # Below we define dict of dicts. Key of inner ones: 'width',
-        # 'precision', and optional: 'unit' and 'name'.
-        formats = {
-            't_0': {'width': 13, 'precision': 5, 'unit': 'HJD'},
-            'u_0': {'width': 9, 'precision': 6},
-            't_eff': {'width': 10, 'precision': 6, 'unit': 'd'},
-            't_E': {'width': 10, 'precision': 4, 'unit': 'd'},
-            'rho': {'width': 7, 'precision': 5},
-            't_star': {'width': 13, 'precision': 6, 'unit': 'd'},
-            'pi_E_N': {'width': 9, 'precision': 5},
-            'pi_E_E': {'width': 9, 'precision': 5},
-            's': {'width': 9, 'precision': 5},
-            'q': {'width': 12, 'precision': 8},
-            'alpha': {'width': 11, 'precision': 5, 'unit': 'deg'},
-            'ds_dt': {
-                'width': 11, 'precision': 5, 'unit': '/yr', 'name': 'ds/dt'},
-            'dalpha_dt': {
-                'width': 18, 'precision': 5, 'unit': 'deg/yr',
-                'name': 'dalpha/dt'},
-            'x_caustic_in': {'width': 13, 'precision': 7},
-            'x_caustic_out': {'width': 13, 'precision': 7},
-            't_caustic_in': {'width': 19, 'precision': 5, 'unit': 'HJD'},
-            't_caustic_out': {'width': 19, 'precision': 5, 'unit': 'HJD'},
-        }
-        # Add binary source parameters with the same settings.
-        binary_source_keys = ['t_0_1', 't_0_2', 'u_0_1', 'u_0_2',
-                              'rho_1', 'rho_2', 't_star_1', 't_star_2']
-        for key in binary_source_keys:
-            form = formats[key[:-2]]
-            formats[key] = {'width': form['width'],
-                            'precision': form['precision']}
-            if 'unit' in form:
-                formats[key]['unit'] = form['unit']
-            if 'name' in form:
-                raise KeyError('internal issue: {:}'.format(key))
-        formats_keys = [
-            't_0', 't_0_1', 't_0_2', 'u_0', 'u_0_1', 'u_0_2', 't_eff', 't_E',
-            'rho', 'rho_1', 'rho_2', 't_star', 't_star_1', 't_star_2',
-            'pi_E_N', 'pi_E_E', 's', 'q', 'alpha', 'ds_dt', 'dalpha_dt',
-            'x_caustic_in', 'x_caustic_out', 't_caustic_in', 't_caustic_out',
-        ]
-
-        variables = ''
-        values = ''
-
-        for key in formats_keys:
-            if key not in keys:
-                continue
-            form = formats[key]
-            fmt_1 = '{:>' + str(form['width'])
-            fmt_2 = fmt_1 + '.' + str(form['precision']) + 'f} '
-            fmt_1 += '} '
-            full_name = form.get('name', key)
-            if 'unit' in form:
-                full_name += " ({:})".format(form['unit'])
-            variables += fmt_1.format(full_name)
-            value = getattr(self, key)
-            if isinstance(value, u.Quantity):
-                value = value.value
-            values += fmt_2.format(value)
-
-        return '{0}\n{1}\n'.format(variables, values)
-
-    def _check_valid_combination_2_sources(self, keys):
+    def _check_valid_combination_1_source(self, keys):
         """
-        make sure that there is no conflict between t_0 and t_0_1 etc.
+        Check that the user hasn't over-defined the ModelParameters.
+        This function sets self._Cassan08 property.
         """
-        binary_params = ['t_0_1', 't_0_2', 'u_0_1', 'u_0_2', 'rho_1', 'rho_2',
-                         't_star_1', 't_star_2']
-        for parameter in binary_params:
+        # Make sure that there are no unwanted keys
+        allowed_keys = set([
+            't_0', 'u_0', 't_E', 't_eff', 's', 'q', 'alpha', 'rho', 't_star',
+            'pi_E', 'pi_E_N', 'pi_E_E', 't_0_par', 'dalpha_dt', 'ds_dt',
+            't_0_kep', 't_0_1', 't_0_2', 'u_0_1', 'u_0_2', 'rho_1', 'rho_2',
+            't_star_1', 't_star_2', 'x_caustic_in', 'x_caustic_out',
+            't_caustic_in', 't_caustic_out'])
+        difference = set(keys) - allowed_keys
+        if len(difference) > 0:
+            derived_1 = ['gamma', 'gamma_perp', 'gamma_parallel']
+            if set(keys).intersection(derived_1):
+                msg = ('You cannot set gamma, gamma_perp, ' +
+                       'or gamma_parallel. These are derived parameters. ' +
+                       'You can set ds_dt and dalpha_dt instead.\n')
+            else:
+                msg = ""
+            msg += 'Unrecognized parameters: {:}'.format(difference)
+            raise KeyError(msg)
+
+        # There are 2 types of models:
+        # - standard
+        # - Cassan08 (no t_0, u_0, t_E, alpha)
+        self._Cassan08 = False
+        Cassan08_parameters = [
+            'x_caustic_in', 'x_caustic_out', 't_caustic_in', 't_caustic_out']
+        for parameter in Cassan08_parameters:
             if parameter in keys:
-                if parameter[:-2] in keys:
-                    raise ValueError('You cannot set {:} and {:}'.format(
-                                        parameter, parameter[:-2]))
+                self._Cassan08 = True
+
+        if self._Cassan08:
+            self._check_valid_combination_1_source_Cassan08(keys)
+        else:
+            self._check_valid_combination_1_source_standard(keys)
+
+    def _check_valid_combination_1_source_Cassan08(self, keys):
+        """
+        Check parameters defined for Cassan 2008 parameterization.
+        Currently, only static models are accepted.
+        """
+        # Check that all required parameters are defined.
+        parameters = ['s', 'q', 'x_caustic_in', 'x_caustic_out',
+                      't_caustic_in', 't_caustic_out']
+        for parameter in parameters:
+            if parameter not in keys:
+                raise KeyError(
+                    'If you use Cassan 2008 parameterization, then all ' +
+                    'these parameters have to be defined:\n' +
+                    ' \n'.join(parameters))
+
+        # Make sure that there are no unwanted keys
+        allowed_keys = set(parameters + ['rho', 't_star'])
+        difference = set(keys) - allowed_keys
+        if len(difference) > 0:
+            msg = 'Parameters not allowed in Cassan (2008) parameterization '
+            msg += '(at this point): {:}'.format(difference)
+            raise KeyError(msg)
+
+        # Source size cannot be over-defined.
+        if ('rho' in keys) and ('t_star' in keys):
+            raise KeyError('Both rho and t_star cannot be defined for ' +
+                           'Cassan 08 parametrization.')
 
     def _check_valid_combination_1_source_standard(self, keys):
         """
@@ -460,72 +444,16 @@ class ModelParameters(object):
                 raise KeyError(
                     't_0_kep makes sense only when orbital motion is defined.')
 
-    def _check_valid_combination_1_source_Cassan08(self, keys):
+    def _set_parameters(self, parameters):
         """
-        Check parameters defined for Cassan 2008 parameterization.
-        Currently, only static models are accepted.
+        check if parameter values make sense and remember the copy of the dict
         """
-        # Check that all required parameters are defined.
-        parameters = ['s', 'q', 'x_caustic_in', 'x_caustic_out',
-                      't_caustic_in', 't_caustic_out']
-        for parameter in parameters:
-            if parameter not in keys:
-                raise KeyError(
-                    'If you use Cassan 2008 parameterization, then all ' +
-                    'these parameters have to be defined:\n' +
-                    ' \n'.join(parameters))
+        self._check_valid_parameter_values(parameters)
+        self.parameters = dict(parameters)
 
-        # Make sure that there are no unwanted keys
-        allowed_keys = set(parameters + ['rho', 't_star'])
-        difference = set(keys) - allowed_keys
-        if len(difference) > 0:
-            msg = 'Parameters not allowed in Cassan (2008) parameterization '
-            msg += '(at this point): {:}'.format(difference)
-            raise KeyError(msg)
-
-        # Source size cannot be over-defined.
-        if ('rho' in keys) and ('t_star' in keys):
-            raise KeyError('Both rho and t_star cannot be defined for ' +
-                           'Cassan 08 parametrization.')
-
-    def _check_valid_combination_1_source(self, keys):
-        """
-        Check that the user hasn't over-defined the ModelParameters.
-        This function sets self._Cassan08 property.
-        """
-        # Make sure that there are no unwanted keys
-        allowed_keys = set([
-            't_0', 'u_0', 't_E', 't_eff', 's', 'q', 'alpha', 'rho', 't_star',
-            'pi_E', 'pi_E_N', 'pi_E_E', 't_0_par', 'dalpha_dt', 'ds_dt',
-            't_0_kep', 't_0_1', 't_0_2', 'u_0_1', 'u_0_2', 'rho_1', 'rho_2',
-            't_star_1', 't_star_2', 'x_caustic_in', 'x_caustic_out',
-            't_caustic_in', 't_caustic_out'])
-        difference = set(keys) - allowed_keys
-        if len(difference) > 0:
-            derived_1 = ['gamma', 'gamma_perp', 'gamma_parallel']
-            if set(keys).intersection(derived_1):
-                msg = ('You cannot set gamma, gamma_perp, ' +
-                       'or gamma_parallel. These are derived parameters. ' +
-                       'You can set ds_dt and dalpha_dt instead.\n')
-            else:
-                msg = ""
-            msg += 'Unrecognized parameters: {:}'.format(difference)
-            raise KeyError(msg)
-
-        # There are 2 types of models:
-        # - standard
-        # - Cassan08 (no t_0, u_0, t_E, alpha)
-        self._Cassan08 = False
-        Cassan08_parameters = [
-            'x_caustic_in', 'x_caustic_out', 't_caustic_in', 't_caustic_out']
-        for parameter in Cassan08_parameters:
-            if parameter in keys:
-                self._Cassan08 = True
-
-        if self._Cassan08:
-            self._check_valid_combination_1_source_Cassan08(keys)
-        else:
-            self._check_valid_combination_1_source_standard(keys)
+        for parameter in ['t_E', 't_star', 't_eff', 't_star_1', 't_star_2']:
+            if parameter in self.parameters:
+                self._set_time_quantity(parameter, self.parameters[parameter])
 
     def _check_valid_parameter_values(self, parameters):
         """
@@ -559,16 +487,88 @@ class ModelParameters(object):
                     msg = "{:} has to be in (0, 1) range, not {:}"
                     raise ValueError(msg.format(name, parameters[name]))
 
-    def _set_parameters(self, parameters):
-        """
-        check if parameter values make sense and remember the copy of the dict
-        """
-        self._check_valid_parameter_values(parameters)
-        self.parameters = dict(parameters)
+    def __repr__(self):
+        """A nice way to represent a ModelParameters object as a string"""
 
-        for parameter in ['t_E', 't_star', 't_eff', 't_star_1', 't_star_2']:
-            if parameter in self.parameters:
-                self._set_time_quantity(parameter, self.parameters[parameter])
+        keys = set(self.parameters.keys())
+        if 'pi_E' in keys:
+            keys.remove('pi_E')
+            keys |= {'pi_E_E', 'pi_E_N'}
+
+        # Below we define dict of dicts. Key of inner ones: 'width',
+        # 'precision', and optional: 'unit' and 'name'.
+        formats = {
+            't_0': {'width': 13, 'precision': 5, 'unit': 'HJD'},
+            'u_0': {'width': 9, 'precision': 6},
+            't_eff': {'width': 10, 'precision': 6, 'unit': 'd'},
+            't_E': {'width': 10, 'precision': 4, 'unit': 'd'},
+            'rho': {'width': 7, 'precision': 5},
+            't_star': {'width': 13, 'precision': 6, 'unit': 'd'},
+            'pi_E_N': {'width': 9, 'precision': 5},
+            'pi_E_E': {'width': 9, 'precision': 5},
+            's': {'width': 9, 'precision': 5},
+            'q': {'width': 12, 'precision': 8},
+            'alpha': {'width': 11, 'precision': 5, 'unit': 'deg'},
+            'ds_dt': {
+                'width': 11, 'precision': 5, 'unit': '/yr', 'name': 'ds/dt'},
+            'dalpha_dt': {
+                'width': 18, 'precision': 5, 'unit': 'deg/yr',
+                'name': 'dalpha/dt'},
+            'x_caustic_in': {'width': 13, 'precision': 7},
+            'x_caustic_out': {'width': 13, 'precision': 7},
+            't_caustic_in': {'width': 19, 'precision': 5, 'unit': 'HJD'},
+            't_caustic_out': {'width': 19, 'precision': 5, 'unit': 'HJD'},
+        }
+        # Add binary source parameters with the same settings.
+        binary_source_keys = ['t_0_1', 't_0_2', 'u_0_1', 'u_0_2',
+                              'rho_1', 'rho_2', 't_star_1', 't_star_2']
+        for key in binary_source_keys:
+            form = formats[key[:-2]]
+            formats[key] = {'width': form['width'],
+                            'precision': form['precision']}
+            if 'unit' in form:
+                formats[key]['unit'] = form['unit']
+            if 'name' in form:
+                raise KeyError('internal issue: {:}'.format(key))
+        formats_keys = [
+            't_0', 't_0_1', 't_0_2', 'u_0', 'u_0_1', 'u_0_2', 't_eff', 't_E',
+            'rho', 'rho_1', 'rho_2', 't_star', 't_star_1', 't_star_2',
+            'pi_E_N', 'pi_E_E', 's', 'q', 'alpha', 'ds_dt', 'dalpha_dt',
+            'x_caustic_in', 'x_caustic_out', 't_caustic_in', 't_caustic_out',
+        ]
+
+        variables = ''
+        values = ''
+
+        for key in formats_keys:
+            if key not in keys:
+                continue
+            form = formats[key]
+            fmt_1 = '{:>' + str(form['width'])
+            fmt_2 = fmt_1 + '.' + str(form['precision']) + 'f} '
+            fmt_1 += '} '
+            full_name = form.get('name', key)
+            if 'unit' in form:
+                full_name += " ({:})".format(form['unit'])
+            variables += fmt_1.format(full_name)
+            value = getattr(self, key)
+            if isinstance(value, u.Quantity):
+                value = value.value
+            values += fmt_2.format(value)
+
+        return '{0}\n{1}\n'.format(variables, values)
+
+    def _check_valid_combination_2_sources(self, keys):
+        """
+        make sure that there is no conflict between t_0 and t_0_1 etc.
+        """
+        binary_params = ['t_0_1', 't_0_2', 'u_0_1', 'u_0_2', 'rho_1', 'rho_2',
+                         't_star_1', 't_star_2']
+        for parameter in binary_params:
+            if parameter in keys:
+                if parameter[:-2] in keys:
+                    raise ValueError('You cannot set {:} and {:}'.format(
+                                        parameter, parameter[:-2]))
 
     def _update_sources(self, parameter, value):
         """
