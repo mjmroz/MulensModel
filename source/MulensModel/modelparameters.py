@@ -290,7 +290,9 @@ class ModelParameters(object):
             'pi_E', 'pi_E_N', 'pi_E_E', 't_0_par', 'dalpha_dt', 'ds_dt',
             't_0_kep', 't_0_1', 't_0_2', 'u_0_1', 'u_0_2', 'rho_1', 'rho_2',
             't_star_1', 't_star_2', 'x_caustic_in', 'x_caustic_out',
-            't_caustic_in', 't_caustic_out'])
+            't_caustic_in', 't_caustic_out',
+            'xi_ra', 'xi_dec', 'xi_period', 'xi_E_N', 'xi_E_E', 'xi_t_0',
+            'xi_ecc'])
         difference = set(keys) - allowed_keys
         if len(difference) > 0:
             derived_1 = ['gamma', 'gamma_perp', 'gamma_parallel']
@@ -352,11 +354,12 @@ class ModelParameters(object):
         """
         self._check_valid_combination_1_source_1_lens(keys)
         self._check_valid_combination_1_source_parallax(keys)
+        self._check_valid_combination_1_source_xallarap(keys)
         self._check_valid_combination_1_source_binary_lens(keys)
 
     def _check_valid_combination_1_source_1_lens(self, keys):
         """
-        Here we check non-parallax single lens parameters.
+        Here we check non-parallax non-xallarap single lens parameters.
         """
         # Make sure that minimum set of parameters are defined - we need
         # to know t_0, u_0, and t_E.
@@ -408,6 +411,12 @@ class ModelParameters(object):
                 raise KeyError(
                     'Parallax is defined, hence either t_0 or t_0_par has ' +
                     'to be set.')
+
+    def _check_valid_combination_1_source_xallarap(self, keys):
+        """
+        Here we check xallarap parameters
+        """
+        pass
 
     def _check_valid_combination_1_source_binary_lens(self, keys):
         """
