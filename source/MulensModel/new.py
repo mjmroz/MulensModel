@@ -15,13 +15,16 @@ def get_eccentric_anomaly(m, ecc):
     else:
         e = m
     e = e + ecc * np.sin(e)
-    
-    mask = [True]
+
+    n = len(m)
+    mask = np.ones(n, dtype=bool)
     while np.sum(mask) > 0:
-        f_bis = ecc * np.sin(e)  # This is second derivative of the function.
-        f = e - m - f_bis
-        f_prime = 1. - ecc * np.cos(e)
-        corr = 2 * f * f_prime / (2 * f_prime**2 - f * f_bis)
+        e_ = e[mask]
+        f_bis = ecc * np.sin(e_)  # This is second derivative of the function.
+        f = e_ - m[mask] - f_bis
+        f_prime = 1. - ecc * np.cos(e_)
+        corr = np.zeros(n)
+        corr[mask] = 2 * f * f_prime / (2 * f_prime**2 - f * f_bis)
         e -= corr
         mask = (np.abs(corr) > lim)
     return e
