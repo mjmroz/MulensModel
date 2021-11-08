@@ -414,9 +414,25 @@ class ModelParameters(object):
 
     def _check_valid_combination_1_source_xallarap(self, keys):
         """
-        Here we check xallarap parameters
+        Here we check if xallarap parameters are properly defined
         """
-        pass
+        required = [
+            'xi_ra', 'xi_dec', 'xi_period', 'xi_E_N', 'xi_E_E', 'xi_t_0']
+        allowed = required + ['xi_ecc']
+        if len(set(allowed).intersection(set(keys))) == 0:
+            return
+
+        common = set(required).intersection(set(keys))
+        if len(common) < len(required):
+            raise ValueError(
+                'xallarap models required at least these parameters: ' +
+                str(required))
+
+        forbidden = ['pi_E_N', 'pi_E_E', 'pi_E']
+        common = set(forbidden).intersection(set(keys))
+        if len(common) > 0:
+            raise ValueError(
+                'combining xallarap and parallax models is not possible yet')
 
     def _check_valid_combination_1_source_binary_lens(self, keys):
         """
@@ -569,7 +585,8 @@ class ModelParameters(object):
 
     def _check_valid_combination_2_sources(self, keys):
         """
-        make sure that there is no conflict between t_0 and t_0_1 etc.
+        Make sure that there is no conflict between t_0 and t_0_1 etc.
+        Make sure that there are no xallarap parameters.
         """
         binary_params = ['t_0_1', 't_0_2', 'u_0_1', 'u_0_2', 'rho_1', 'rho_2',
                          't_star_1', 't_star_2']
@@ -578,6 +595,12 @@ class ModelParameters(object):
                 if parameter[:-2] in keys:
                     raise ValueError('You cannot set {:} and {:}'.format(
                                         parameter, parameter[:-2]))
+
+        forbidden = ['xi_ra', 'xi_dec', 'xi_period', 'xi_E_N', 'xi_E_E',
+                     'xi_t_0', 'xi_ecc']
+        if len(set(forbidden).intersection(set(keys))) > 0:
+            raise ValueError("Currently it's not possible to use "
+                             "the xallarap effect for a binary source model")
 
     def _update_sources(self, parameter, value):
         """

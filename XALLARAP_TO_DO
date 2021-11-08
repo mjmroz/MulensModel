@@ -15,10 +15,10 @@ xi_t_0
    -- "maybe add a function that sets model types: self._parallax, etc." ???
    -- # DONE _check_valid_combination_1_source_standard - add a call to new function _check_valid_combination_1_source_xallarap
    -- # DONE _check_valid_combination_1_source_1_lens - correct docstring
-   -- "STARTED" _check_valid_combination_1_source_xallarap - write code:
-     --- only for n_sources == 1 currently
-     --- no xallarap and parallax (relative lens-source proper motion directions have to agree)
-     --- xi_ecc - not required
+   -- # DONE _check_valid_combination_1_source_xallarap - write code:
+     --- # DONE no xallarap and parallax (relative lens-source proper motion directions have to agree)
+     --- # DONE xi_ecc - not required
+ - # DONE _check_valid_combination_2_sources - forbidden
  - obvious constraints 
  - __repr__
  - @property/setter
@@ -28,5 +28,6 @@ xi_t_0
  - III Kepler law to be applied?
 * Trajectory.get_xy
 * documents/parameter_names.tex
-
+* check any XXX
+* remove this file
 
