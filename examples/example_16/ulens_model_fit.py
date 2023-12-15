@@ -428,9 +428,12 @@ class UlensModelFit(object):
         self._residuals_output = False
 
         parameters_str = (
-            't_0 u_0 t_0_1 u_0_1 t_0_2 u_0_2 t_E t_eff rho rho_1 rho_2 ' +
-            't_star t_star_1 t_star_2 pi_E_N pi_E_E s q alpha ds_dt ' +
-            'dalpha_dt x_caustic_in x_caustic_out t_caustic_in t_caustic_out')
+          't_0 u_0 t_0_1 u_0_1 t_0_2 u_0_2 t_E t_eff rho rho_1 rho_2 ' +
+          't_star t_star_1 t_star_2 pi_E_N pi_E_E s q alpha ds_dt ' +
+          'dalpha_dt x_caustic_in x_caustic_out t_caustic_in t_caustic_out ' +
+          'xi_period xi_semimajor_axis xi_inclination xi_Omega_node '+
+          'xi_argument_of_latitude_reference xi_eccentricity xi_omega_periapsis')
+       
         self._all_MM_parameters = parameters_str.split()
         self._other_parameters = []
 
@@ -446,7 +449,16 @@ class UlensModelFit(object):
             x_caustic_in='x_{\\rm caustic,in}',
             x_caustic_out='x_{\\rm caustic,out}',
             t_caustic_in='t_{\\rm caustic,in}',
-            t_caustic_out='t_{\\rm caustic,out}')
+            t_caustic_out='t_{\\rm caustic,out}',
+            xi_period='\\xi_P',
+            xi_semimajor_axis='\\xi_a',
+            xi_inclination='\\xi_i',
+            xi_Omega_node='\\xi_\\Omega',
+            xi_argument_of_latitude_reference='\\xi_u',
+            xi_eccentricity='\\xi_e',
+            xi_omega_periapsis='\\xi_\\omega',)
+        
+        
         self._latex_conversion_other = dict()
 
     def _guess_fitting_method(self):
