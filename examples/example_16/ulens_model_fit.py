@@ -1674,7 +1674,7 @@ class UlensModelFit(object):
 
         fixed = set(self._fixed_parameters.keys())
 
-        unknown = fixed - set(self._all_MM_parameters + ['t_0_par']+['t_0_xi'])
+        unknown = fixed - set(self._all_MM_parameters + ['t_0_par']+['t_0_xi']+['t_0_kep'])
         if len(unknown) > 0:
             raise ValueError('Unknown fixed parameters: {:}'.format(unknown))
 
