@@ -2077,7 +2077,10 @@ class UlensModelFit(object):
         """
         fluxes = []
         for (i, dataset) in enumerate(self._datasets):
-            fluxes += self._event.fits[i].source_fluxes.tolist()
+            if isinstance(self._event.fits[i].source_fluxes, list):
+                fluxes += self._event.fits[i].source_fluxes
+            else:
+                fluxes += self._event.fits[i].source_fluxes.tolist()
             fluxes.append(self._event.fits[i].blend_flux)
 
         return fluxes

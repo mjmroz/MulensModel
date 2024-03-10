@@ -1,0 +1,51 @@
+photometry_files:
+    - {file_name: data/OB08092/phot_ob08092_O4.dat}
+fixed_parameters:
+    flux_0 : 1691.795
+    flux_b_1 : 31.766
+    GP_Q_0 :  0.7071067811865476
+    
+starting_parameters:
+    t_0: gauss 2455380. 0.1
+    u_0: uniform 0.001 1.
+    t_E: gauss 20. 5.
+
+    GP_ln_omega_0 : gauss 0. 5.
+    GP_ln_S_0_omega_0^4 : gauss 0.1689 5.
+    GP_ln_rho : uniform 0.016 590.
+    GP_ln_sigma : gauss 0. 5.
+    GP_ln_K_err^2 : gauss 0.0953 1. 
+    
+min_values:
+    t_0: 2454000.
+    u_0: 0.
+    t_E: 0.
+
+    GP_ln_omega_0 : 0.
+    GP_ln_S_0_omega_0^4 : 0.
+    GP_ln_rho : 0.016
+    GP_ln_sigma : 0.
+    GP_ln_K_err^2 : 0.
+    
+max_values:
+    t_0: 2460000.
+    u_0: 1.5
+    t_E: 200.
+    
+    #GP_ln_omega_0 :
+    #GP_ln_S_0_omega_0^4 :
+    GP_ln_rho : 600
+    #GP_ln_sigma :
+    #GP_ln_K_err^2 :
+    
+fitting_parameters:
+    n_walkers: 20
+    n_steps: 3000
+    n_burn:  1000
+plots:
+    triangle:
+        file: ob08092-o4_triangle_periodic.png
+    trace:
+        file: ob08092-o4_trace_periodic.png
+    best model:
+        file: ob08092-o4_model_periodic.png
