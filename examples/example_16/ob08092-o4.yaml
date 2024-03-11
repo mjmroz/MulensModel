@@ -23,3 +23,12 @@ plots:
         file: ob08092-o4_trace.png
     best model:
         file: ob08092-o4_model.png
+        
+other_output:
+    models:
+        # Value "-" in line below means that the models will be printed to screen instead of a file.
+        file name: ob08092-o4_models.txt
+    yaml output:
+        # Value "-" in line below means that the models will be printed to screen instead of a file.
+        file name:  ob08092-o4_results.yaml
+
