@@ -2543,7 +2543,7 @@ class UlensModelFit(object):
             raise ValueError('There was some issue with blobs:\n' +
                              str(exception))
         blob_sampler = np.transpose(blobs, axes=(1, 0, 2))
-        blob_samples = blob_sampler[:, self._fitting_parameters['n_burn']:, :]
+        blob_samples = blob_sampler[:, self._fitting_parameters['n_burn']:, :self._n_fluxes]
         blob_samples = blob_samples.reshape((-1, self._n_fluxes))
 
         return blob_samples
