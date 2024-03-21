@@ -14,13 +14,10 @@ from astropy import units as u
 from ulens_model_fit import UlensModelFit
 
 
-
 class UlensModelFitWithGP(UlensModelFit):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-   
-    
-   
+
     def _set_default_parameters(self):
         """
         Extend the set of available parameters

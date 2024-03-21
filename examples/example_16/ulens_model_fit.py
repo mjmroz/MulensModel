@@ -302,13 +302,14 @@ class UlensModelFit(object):
             These files will have three columns: time, residuals, and
             uncertainties.
     """
+
     def __init__(
             self, photometry_files,
             starting_parameters=None, prior_limits=None, model=None,
             fixed_parameters=None,
             min_values=None, max_values=None, fitting_parameters=None,
             fit_constraints=None, plots=None, other_output=None
-            ):
+    ):
         self._check_MM_version()
         self._photometry_files = photometry_files
         self._starting_parameters_input = starting_parameters
@@ -1596,6 +1597,7 @@ class UlensModelFit(object):
         allowed = set(self._all_MM_parameters + self._fixed_only_MM_parameters +
                       self._other_parameters)
         unknown = fixed - allowed
+
         if len(unknown) > 0:
             raise ValueError('Unknown fixed parameters: {:}'.format(unknown))
 
@@ -1981,8 +1983,8 @@ class UlensModelFit(object):
         """
         sampling = self._model.parameters.uniform_caustic_sampling
         valid = sampling.check_valid_trajectory(
-                self._model.parameters.x_caustic_in,
-                self._model.parameters.x_caustic_out)
+            self._model.parameters.x_caustic_in,
+            self._model.parameters.x_caustic_out)
         return valid
 
     def _get_ln_prior_for_1_parameter(self, value, settings):
@@ -2543,7 +2545,8 @@ class UlensModelFit(object):
             raise ValueError('There was some issue with blobs:\n' +
                              str(exception))
         blob_sampler = np.transpose(blobs, axes=(1, 0, 2))
-        blob_samples = blob_sampler[:, self._fitting_parameters['n_burn']:, :self._n_fluxes]
+        blob_samples = blob_sampler[:,
+                                    self._fitting_parameters['n_burn']:, :self._n_fluxes]
         blob_samples = blob_samples.reshape((-1, self._n_fluxes))
 
         return blob_samples
