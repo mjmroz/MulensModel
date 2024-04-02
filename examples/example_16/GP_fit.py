@@ -190,7 +190,7 @@ class UlensModelFitVariableBaseline(UlensModelFit):
         chi2 = self._event.get_chi2()
 
         out = 0.  # -0.5 * chi2
-        out = 0. - 0.5 * chi2
+        #out = 0. - 0.5 * chi2
 
         if self._print_model:
             self._print_current_model(theta, chi2)
