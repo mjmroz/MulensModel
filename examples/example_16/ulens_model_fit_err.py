@@ -4,6 +4,7 @@ import emcee
 import yaml
 import numpy as np
 from copy import copy, deepcopy
+import os 
 
 from ulens_model_fit import UlensModelFit, import_failed
 try:
@@ -105,8 +106,8 @@ class UlensModelFitErrorsScales(UlensModelFit):
         """
         scaling = file_.pop("scale_errorbars", None)
         fit_errorbars = file_.pop("fit_errorbars", None)
-        clean_points= file_.pop("clean_points", None)
-        bad= file_.pop("bad", None)
+        clean_points = file_.pop("clean_points", None)
+        bad = file_.pop("bad", None)
     
         try:
             dataset = mm.MulensData(**{**kwargs, **file_})
@@ -124,35 +125,36 @@ class UlensModelFitErrorsScales(UlensModelFit):
             dataset.scale_errorbars(**scaling)
 
         if bad is not None:
-            self._set_bad(bad,dataset)
+            self._set_bad(bad, dataset)
             
         return dataset
 
-    def _set_bad(self, bad,dataset):
+    def _set_bad(self, bad, dataset):
         """
-        Setting bad flags for dataset base on argument photometry_files['bad'] in yaml file
+        Setting bad flags for dataset base on argument
+        photometry_files['bad'] in yaml file
         """
-        if os.path.isfile(bad): 
-            bad_array=np.genfromtxt(bad)
-            if  bad_array.dtype== np.dtype('bool'):
-                if len(bad)==dataset.n_epochs: 
-                    bad_bool=bad_array
+        if os.path.isfile(bad) : 
+            bad_array = np.genfromtxt(bad)
+            if  bad_array.dtype == np.dtype('bool'):
+                if len(bad) == dataset.n_epochs: 
+                    bad_bool = bad_array
                 else: 
                     raise ValueError(
                         'File {:s} with boolean values shoud have the same lenght as the corresponding dataset'.format(str(bad))
                     )
-            elif bad_array.dtype== np.dtype('int'):
-                if max(bad_array)>=dataset.n_epochs and min(bad_array)<=0: 
-                    bad_bool=np.full(dataset.n_epochs,False)
+            elif bad_array.dtype == np.dtype('int'):
+                if max(bad_array) >= dataset.n_epochs and min(bad_array)<=0: 
+                    bad_bool = np.full(dataset.n_epochs,False)
                     bad_bool[bad_array]=True
                 else:
                     raise ValueError(
                         'Indexes in {:s} do not match the corresponding dataset'.format(str(bad))
                     )
-            elif bad_array.dtype== np.dtype('float'):
-                bad_bool=np.full(dataset.n_epochs,False)
+            elif bad_array.dtype == np.dtype('float'):
+                bad_bool = np.full(dataset.n_epochs,False)
                 for (i , time) in enumerate(dataset.time()):
-                    if time in bad_array : bad_bool[i]=False
+                    if time in bad_array : bad_bool[i] = False
             else:  
                 raise ValueError(
                         'Wrong declaration of bad data points in file {:s}'.format(str(bad)),
@@ -232,23 +234,30 @@ class UlensModelFitErrorsScales(UlensModelFit):
         """
         Define starting values for errorbars scales fitting if there not already defined in yaml file 
         """
-        declared = {**self._starting_parameters_input,
-                    **self._fixed_parameters}.keys()
+        starting_parameters_input = self._starting_parameters_input or {}
+        fixed_parameters = self._fixed_parameters or {}      
+        merged_parameters = {**starting_parameters_input, **fixed_parameters}
+        declared= list(merged_parameters.keys())
+        
         for key in self._other_parameters:
             if key[:3] == 'ERR':
                 if key not in declared:
                     if key[4] == 'k':
-                        self._starting_parameters_input[key] = 'gauss 1. 0.1'
+                        self._starting_parameters_input[key] = 'gauss 1. 0.05'
+                        print("setting: "+ key + ' gauss 1. 0.1')
                     if key[4] == 'e':
-                        self._starting_parameters_input[key] = 'gauss 0. 0.01'
+                        self._starting_parameters_input[key] = 'log-uniform 0.0001 0.1'   
+                        print("setting: "+  key + ' log-uniform 0.0001 0.1')
+                        
 
     def _check_errorbars_scales_ranges(self):
         """
         Define max and min values for errorbars scales fitting if there not already defined in yaml file 
-        """
+        """        
+        fixed_parameters = self._fixed_parameters or {}   
         for key in self._other_parameters:
             if key[:3] == 'ERR':
-                if key not in self._fixed_parameters.keys():
+                if key not in fixed_parameters.keys():
                     if key not in self._min_values.keys():
                         self._min_values[key] = 0.
                     if key not in self._max_values.keys():
@@ -342,12 +351,23 @@ class UlensModelFitErrorsScales(UlensModelFit):
         """
         save indexes of bad points for each dataset
         """
+        #something better can be done here 
+        results_dir=[]
+        for (key, value) in self._other_output.items():
+            results_dir.append(os.path.split(value['file name'])[0])
+            
+        if len(set(results_dir))!=1:
+            raise Warning(
+                             'Ambiguous results directory. Bad data points will be saved in: '+
+                             +results_dir[0])
+            
+        results_dir=results_dir[0]
         for (i, _data) in enumerate(self._event.datasets):
             if self._clean_datapoints[i]:
                 bad = np.where(_data.bad==True)
-                name = self._settings['photometry_files'][i]['file_name']
+                name = self._photometry_files[i]['file_name']
                 name = os.path.split(name)[1][:-4]
-                file = os.path.join(self._results_dir, name+'_bad_idx.dat')
+                file = os.path.join(results_dir, name+'_bad_idx.dat')
                 np.savetxt(file, bad, fmt="%d")
 
 
@@ -389,14 +409,13 @@ class UlensModelFitErrorsScales(UlensModelFit):
         self._make_plots()
 
 if __name__ == '__main__':
-    # if len(sys.argv) != 2:
-    #     raise ValueError('Exactly one argument needed - YAML file')
-    # if 'yaml' in import_failed:
-    #     raise ImportError('module "yaml" could not be imported :(')
+    if len(sys.argv) != 2:
+         raise ValueError('Exactly one argument needed - YAML file')
+    if 'yaml' in import_failed:
+         raise ImportError('module "yaml" could not be imported :(')
+    input_file = sys.argv[1]
 
-    # input_file = sys.argv[1]
-
-    input_file = '/home/data/bl401/mmroz/mulens/OB151609/err_scal/close_up_pin/OB151609_close_close_up_pin.yaml'
+    #input_file = '/home/data/bl401/mmroz/mulens/OB151609/err_scal/close_up_pin/OB151609_close_close_up_pin.yaml'
 
     with open(input_file, 'r') as data:
         settings = yaml.safe_load(data)
