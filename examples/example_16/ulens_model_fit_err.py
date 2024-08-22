@@ -260,11 +260,14 @@ class UlensModelFitErrorsScales(UlensModelFit):
                 if key not in fixed_parameters.keys():
                     if key not in self._min_values.keys():
                         self._min_values[key] = 0.
+                        print("setting : min value" +key+ "0." )
                     if key not in self._max_values.keys():
                         if key[4] == 'k':
                             self._max_values[key] = 10.
+                            print("setting : max value" +key+ "10." )
                         if key[4] == 'e':
                             self._max_values[key] = 0.5
+                            print("setting : max value" +key+ "0.5" )
 
     def _get_ln_probability_for_other_parameters(self):
         """
