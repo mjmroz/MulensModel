@@ -52,7 +52,8 @@ class UlensModelFitErrorsScales(UlensModelFit):
                  for f in self._photometry_files]
         self._fit_errorbars = []
         for file_ in files:
-            if file_["fit_errorbars"] is None:
+            fit_errorbars=file_.get("fit_errorbars")
+            if fit_errorbars is None:
                 file_["fit_errorbars"] = False
             self._fit_errorbars.append(file_["fit_errorbars"])
         if True in self._fit_errorbars:
@@ -66,7 +67,8 @@ class UlensModelFitErrorsScales(UlensModelFit):
                  for f in self._photometry_files]
         self._clean_datapoints = []
         for file_ in files:
-            if file_["clean_points"] is None:
+            clean_points= file_.get("clean_points")
+            if clean_points is None:
                 file_["clean_points"] = False
             self._clean_datapoints.append(file_["clean_points"])
     
@@ -128,7 +130,7 @@ class UlensModelFitErrorsScales(UlensModelFit):
             self._set_bad(bad, dataset)
             
         return dataset
-
+    '''
     def _set_bad(self, bad, dataset):
         """
         Setting bad flags for dataset base on argument
@@ -165,8 +167,56 @@ class UlensModelFitErrorsScales(UlensModelFit):
         try : dataset.bad(bad_bool)
         except:
             raise ValueError( 
-                             'Something wrong with provided bad flags for dataset' + dataset)
+                             'Something wrong with provided bad flags for dataset' + dataset)'''
+    def _set_bad(self, bad, dataset):
+        """
+        Setting bad flags for dataset base on argument
+        photometry_files['bad'] in yaml file
+        """
+        if os.path.isfile(bad) : 
+            print(bad)
+            bad_array = np.genfromtxt(bad)
             
+            if len(bad_array)>0:
+                if  bad_array.dtype == np.dtype('bool'):
+                    if len(bad) == dataset.n_epochs: 
+                        bad_bool = bad_array
+                    else: 
+                        raise ValueError(
+                            'File {:s} with boolean values shoud have the same lenght as the corresponding dataset'.format(str(bad))
+                        )
+                        
+                elif bad_array.dtype == np.dtype('float'):
+                    bad_bool = np.full(dataset.n_epochs,False,dtype=bool)
+                    for (i , time) in enumerate(dataset.time):
+                        if i in np.int64(bad_array) : bad_bool[i] = True
+                        if time in bad_array : bad_bool[i] = True
+
+                else:  
+                    raise ValueError(
+                            'Wrong declaration of bad data points in file {:s}'.format(str(bad)),
+                            'File should consists of boolean array of dataset lenght or identivies of bad epochs in form of indexes:*int*  or HJD stamps:*floats*'
+                        )
+                    
+                try : dataset.bad=bad_bool
+                except:
+                    raise ValueError( 
+                                'Something wrong with provided bad flags for dataset ' + dataset.plot_properties['label'] +'\n ' + str(len(bad_bool)) )    
+
+   
+                    
+        elif bad.dtype == np.dtype('bool'):
+            bad_bool=bad   
+                      
+            try : dataset.bad=bad_bool
+            except:
+                raise ValueError( 
+                                'Something wrong with provided bad flags for dataset ' + dataset.plot_properties['label'] +'\n ' + str(bad_bool[0]) )    
+
+
+
+
+           
     def _clean_data(self):
         """
         Clearing bad epochs in datasets 
