@@ -154,11 +154,14 @@ class FitData(object):
         diff = self._dataset.flux - model_flux
         self._chi2_per_point = (diff / self._dataset.err_flux)**2
 
-    def _set_data_magnification_curves(self, bad=True):
-        if bad:
-            select = np.ones(self._dataset.n_epochs, dtype=bool)
-        else:
-            select = self._dataset.good
+    def _set_data_magnification_curves(self, bad=True, times=None):
+
+        if times is None:
+            if bad:
+                select = np.ones(self._dataset.n_epochs, dtype=bool)
+            else:
+                select = self._dataset.good
+            times = self._dataset.time[select]
 
         if self.dataset.ephemerides_file is None:
             satellite_skycoord = None
@@ -171,18 +174,18 @@ class FitData(object):
         if self._model.n_sources == 1:
             self._data_magnification_curve = \
                 self._model.get_magnification_curve(
-                    time=self._dataset.time[select], **magnification_kwargs)
+                    time=times, **magnification_kwargs)
         elif self._model.n_sources >= 2:
             self._data_magnification_curves = self._model.get_magnification_curves(
-                        time=self._dataset.time[select], **magnification_kwargs)
+                        time=times, **magnification_kwargs)
             for i in range(self._model.n_sources):
                 self.__setattr__('_data_magnification_curve_{0}'.format(i+1), self._data_magnification_curves[i])
 
-    def _calculate_magnifications(self, bad=True):
+    def _calculate_magnifications(self, bad=True, times=None):
         """
         Calculate the model magnifications for the epochs of the dataset.
         """
-        self._set_data_magnification_curves(bad=bad)
+        self._set_data_magnification_curves(bad=bad, times=times)
 
         if self._model.n_sources == 1:
             mag_matrix = self._data_magnification_curve.get_magnification()
@@ -430,7 +433,7 @@ class FitData(object):
         self._calculate_magnifications(bad=bad)
         return self._data_magnification
 
-    def get_model_fluxes(self, bad=False):
+    def get_model_fluxes(self, bad=False, times=None):
         """
         Calculate model in flux space.
 
@@ -440,6 +443,9 @@ class FitData(object):
                 magnification for each point to ensure that the values
                 for bad datapoints are calculated (otherwise, they are set to
                 the magnitude of the blend).
+            times: *array*
+                Times of flux calculations
+                If `None` equal to times of datapoints
 
         Returns :
             model_flux: *np.ndarray*
@@ -458,8 +464,18 @@ class FitData(object):
             model_flux += self.source_flux * self._data_magnification
         else:
             for i in range(self._model.n_sources):
-                model_flux += self.source_fluxes[i] \
-                    * self._data_magnification[i]
+                model_flux += self.source_fluxes[i] * self._data_magnification[i]
+
+        if times is not None:
+            self._calculate_magnifications(times=times)
+
+            model_flux = np.ones(len(times)) * self.blend_flux
+            if self._model.n_sources == 1:
+                model_flux += self.source_flux * self._data_magnification
+            else:
+                for i in range(self._model.n_sources):
+                    model_flux += self.source_fluxes[i] * \
+                        self._data_magnification[i]
 
         return model_flux
 

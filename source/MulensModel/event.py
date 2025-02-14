@@ -355,6 +355,11 @@ class Event(object):
         for (i, data) in enumerate(self._datasets):
             # Scale the data flux
             (flux, err_flux) = self.fits[i].scale_fluxes(f_source_0, f_blend_0)
+            # Scale additionally the data flux
+            if data.plot_properties.get('additional_flux_scaling', None):
+                ref_flux = self.fits[data_ref].get_model_fluxes(
+                    times=data.time)
+                (flux, err_flux) = self._additional_flux_scaling(flux, err_flux, ref_flux)
             (y_value, y_err) = PlotUtils.get_y_value_y_err(
                 phot_fmt, flux, err_flux)
 
@@ -375,6 +380,17 @@ class Event(object):
         (ymin, ymax) = plt.gca().get_ylim()
         if ymax > ymin:
             plt.gca().invert_yaxis()
+
+    def _additional_flux_scaling(self, flux, err_flux, ref_flux):
+        """
+        Scale additionally the data flux
+        """
+        A = np.vstack([ref_flux, np.zeros(len(ref_flux))]).T
+        scale, c = np.linalg.lstsq(A, flux, rcond=-1)[0]
+        flux /= scale
+        err_flux /= scale
+        self.get_chi2()
+        return (flux, err_flux)
 
     def plot_residuals(
             self, show_errorbars=None, data_ref=None, subtract_2450000=False,

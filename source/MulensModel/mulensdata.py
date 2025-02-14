@@ -97,6 +97,10 @@ class MulensData(object):
                 show_bad: *boolean*, optional
                     Whether or not to plot data points flagged as bad.
 
+                additional_flux_scaling : optional
+                    Whether or not to data points should be additionally linearly scaled
+                    to the dat_ref.
+
         ``**kwargs``:
             Kwargs passed to np.loadtxt(). Works only if ``file_name`` is set.
 
@@ -477,7 +481,7 @@ class MulensData(object):
         if size_key not in properties.keys():
             properties[size_key] = 5
 
-        for remove_key in ['show_bad', 'show_errorbars']:
+        for remove_key in ['show_bad', 'show_errorbars', 'additional_flux_scaling']:
             properties.pop(remove_key, None)
 
         return properties

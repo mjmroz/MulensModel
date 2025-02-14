@@ -4280,6 +4280,11 @@ class UlensModelFit(object):
         for (dataset_index, data) in enumerate(self._datasets):
             # Scale the data flux
             (flux, err_flux) = self._event.fits[dataset_index].scale_fluxes(f_source_0, f_blend_0)
+            # Scale additionally the data flux
+            if data.plot_properties.get('additional_flux_scaling', None):
+                ref_flux = self._event.fits[data_ref].get_model_fluxes(times=data.time)
+                (flux, err_flux) = self._event._additional_flux_scaling(flux, err_flux, ref_flux)
+
             (y_value, y_err) = mm.utils.PlotUtils.get_y_value_y_err(phot_fmt, flux, err_flux)
             times = data.time - subtract
             trace_data = self._make_one_interactive_data_trace(
