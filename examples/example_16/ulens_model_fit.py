@@ -1704,10 +1704,11 @@ class UlensModelFit(object):
         """
         allowed_keys_flux = {"no_negative_blending_flux", "negative_blending_flux_sigma_mag"}
         allowed_keys_ratio = {"2 sources flux ratio"}
+        allowed_keys_size = {'2 source flux size relation'}
         allowed_keys_color = {'color', 'color source 1', 'color source 2'}
 
         allowed_keys = {*allowed_keys_flux, *allowed_keys_color,
-                        *allowed_keys_ratio, "prior",
+                        *allowed_keys_ratio, *allowed_keys_size, "prior",
                         "posterior parsing"}
 
         used_keys = set(self._fit_constraints.keys())
@@ -1723,6 +1724,7 @@ class UlensModelFit(object):
 
         self._check_color_constraints_conflict(allowed_keys_color)
         self._check_ratio_constraints_conflict(allowed_keys_ratio)
+        self._check_size_constraints_conflict(allowed_keys_size)
 
     def _set_default_fit_constraints(self):
         """
@@ -1734,8 +1736,30 @@ class UlensModelFit(object):
     def _check_ratio_constraints_conflict(self, allowed_keys_ratio):
         """
         Check for conflicts among 2 source flux ratio constraints.
-        ???
+        XXX
         """
+        self._check_binary_source(allowed_keys_ratio)
+
+    def _check_size_constraints_conflict(self, allowed_keys_size): 
+        """
+        Check for conflicts among 2 source flux size relation constraints.
+        """
+        self._check_binary_source(allowed_keys_size)
+        needed = ['rho_1', 'rho_2']
+        for parameter in needed:
+            if parameter not in self._model_parameters:
+                raise ValueError("2 source flux size relation constraints should be used only with finite \
+                    source model, so " + parameter + ' should be defined")
+
+    def _check_binary_source(self, allowed_keys):
+        """
+        Check if fitted model is a binary source model
+        """
+        for key in allowed_keys:
+            if key in self._fit_constraints: 
+                if self._n_fluxes_per_dataset != 2:
+                    raise ValueError(key + ' fitting \
+                        prior should be used only with binary source model') 
 
     def _check_color_constraints_conflict(self, allowed_keys_color):
         """
@@ -1760,7 +1784,9 @@ class UlensModelFit(object):
                 self._parse_fit_constraints_color(key, value)
             elif key in ['2 sources flux ratio']: 
                 self._parse_fit_constraints_ratio(key, value)
-
+            elif key in ['2 source flux size relation']:
+                self._parse_fit_constraints_size(key, value)
+                
     def _parse_fit_constraints_soft_blending(self, key, value):
         """
         Check if soft fit constraint on blending flux are correctly defined.
@@ -1844,6 +1870,30 @@ class UlensModelFit(object):
 
         if len(settings) != len(set(settings)):
             raise ValueError('datesets' + key+' cannot repeat themselves : ' + settings[1:])
+
+        self._fit_constraints[key] = settings
+        
+    def _parse_fit_constraints_size(self, key, value):
+        """
+        Check if fit constraint on flux-size relation of 2 sources is correctly defined.
+        """
+        self._check_unique_datasets_labels()
+        settings = shlex.split(value, posix=False)
+   
+        try:
+            for i in range(len(settings))
+                settings[i] = float([settings[i]])
+        except Exception
+            raise ValueError('error in parsing: ' + key + " " + settings[i])
+        
+        #power exponent 
+        if settings[2] < 0.:
+            warnings.warn('In ' + key + ' flux most likely should increase with rho, hence the exponent `k` \
+                in the relation flux_1/flux_2 = (rho_1/rho_2)^k should be positive, instead of ' + settings[1])
+    
+        #sigma
+        if settings[1] < 0.:
+            raise ValueError('sigma in' + key+' cannot be negative: ' + settings[0])
 
         self._fit_constraints[key] = settings
 
