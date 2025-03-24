@@ -102,7 +102,7 @@ class ModelParameters(object):
             self._source_1_parameters._xallarap_reference_position = delta_1
             self._source_2_parameters._xallarap_reference_position = delta_1
             self._source_1_parameters._xallarap_reference_velocity = velocity_1
-            self._source_2_parameters._xallarap_reference_velocity = -velocity_2 / self.parameters.get('q_source')
+            self._source_2_parameters._xallarap_reference_velocity = velocity_1
         else:
             raise ValueError('internal error')
 
@@ -1505,6 +1505,19 @@ class ModelParameters(object):
         caused by xallarap.
         """
         return self._xallarap_reference_position
+
+    @property
+    def xallarap_reference_velocity(self):
+        """
+        *np.ndarray* of shape (2, 1)
+
+        The velocity of the first source at :py:attr:`~t_0_xi` relative to the source center of mass.
+        It is a 2D vector that is multiplied by `(time - t_0_xi)` and then subtracted from the source position
+        in order to calculate the shift caused by xallarap.
+
+        Units are 'theta_E' per day.
+        """
+        return self._xallarap_reference_velocity
 
     @property
     def t_0_1(self):
