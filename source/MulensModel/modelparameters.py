@@ -111,8 +111,8 @@ class ModelParameters(object):
         Get position at t_0_xi from xallarap Orbit object.
 
         Note: this function is called in 2 different ways:
-        - directly, i.e., self._get_xallarap_orbit(), and
-        - indirectly, i.e., self._source_1_parameters._get_xallarap_orbit().
+        - directly, i.e., self._get_xallarap_position_and_velocity(), and
+        - indirectly, i.e., self._source_1_parameters._get_xallarap_position_and_velocity().
         """
         if parameters is None:
             parameters = self.parameters
