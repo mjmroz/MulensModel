@@ -57,8 +57,9 @@ class ModelParameters(object):
 
             if self.is_xallarap:
                 self._check_for_extra_source_parameters(parameters.keys())
-                delta_1 = self._get_xallarap_position(parameters)
+                (delta_1, velocity_1) = self._get_xallarap_position(parameters)
                 self._xallarap_reference_position = delta_1
+                self._xallarap_reference_velocity = velocity_1
 
         elif self.n_sources > 1:
             self._check_valid_combination_of_sources(parameters.keys())
@@ -95,11 +96,13 @@ class ModelParameters(object):
         which both are of the same type as self.
         """
         if self.n_sources == 1:
-            self._xallarap_reference_position = self._get_xallarap_position()
+            (self._xallarap_reference_position, self._xallarap_reference_velocity) = self._get_xallarap_position()
         elif self.n_sources == 2:
-            delta_1 = self._source_1_parameters._get_xallarap_position()
+            (delta_1, velocity_1) = self._source_1_parameters._get_xallarap_position()
             self._source_1_parameters._xallarap_reference_position = delta_1
             self._source_2_parameters._xallarap_reference_position = delta_1
+            self._source_1_parameters._xallarap_reference_velocity = velocity_1
+            self._source_2_parameters._xallarap_reference_velocity = -velocity_2 / self.parameters.get('q_source')
         else:
             raise ValueError('internal error')
 
@@ -120,7 +123,13 @@ class ModelParameters(object):
                             for (key, value) in zip_ if key[:3] == "xi_"}
         orbit_parameters['epoch_reference'] = t_0_xi
         orbit = Orbit(**orbit_parameters)
-        return orbit.get_reference_plane_position([t_0_xi])
+        position = orbit.get_reference_plane_position([t_0_xi])
+
+        d_time = min(0.01 * orbit_parameters['period'], 0.1)
+        x_2 = orbit.get_reference_plane_position([t_0_xi+d_time])
+        x_1 = orbit.get_reference_plane_position([t_0_xi-d_time])
+        velocity = 0.5 * (x_2 - x_1) / d_time
+        return (position, velocity)
 
     def __getattr__(self, item):
         (head, end) = self._split_parameter_name(item)

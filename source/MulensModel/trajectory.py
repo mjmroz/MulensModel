@@ -358,4 +358,6 @@ class Trajectory(object):
         orbit_parameters['epoch_reference'] = t_0_xi
         orbit = Orbit(**orbit_parameters)
         positions = orbit.get_reference_plane_position(self._times)
-        return positions - self.parameters.xallarap_reference_position
+        positions -= self.parameters.xallarap_reference_position
+        positions -= (self._times - self.parameters.t_0_xi) * self.parameters._xallarap_reference_velocity
+        return positions
