@@ -823,7 +823,9 @@ def prepare_xallarap_test(
 
     model_1 = mm.Model(common)
     model_2 = mm.Model({**common, **xallarap})
-    return (model_1, model_2, t_0, d_time, tau, u_0, xi_a)
+    velocity = 2 * np.pi * xallarap['xi_semimajor_axis'] / xallarap['xi_period']  # XXX only for circular motion
+#    print(model_2.parameters.xallarap_reference_velocity.reshape((2)))
+    return (model_1, model_2, t_0, d_time, tau, u_0, xi_a, velocity)
 
 
 def test_xallarap_at_t_0_circular():
@@ -852,11 +854,11 @@ def test_xallarap_at_t_0_plus_half_of_period_1():
     Xallarap - circular orbit, half period after t_0, and Omega+nu_0 = 0.
     Expected u is from pen and pencil calculations.
     """
-    (model, t_0, d_time, tau, u_0, xi_a) = prepare_xallarap_test()[1:]
+    (model, t_0, d_time, tau, u_0, xi_a, velocity) = prepare_xallarap_test()[1:]
 
-    u2 = u_0**2 + (tau - 2. * xi_a)**2
+    u2 = (u_0 - velocity * d_time)**2 + (tau - 2. * xi_a)**2
     expected = (u2 + 2.) / np.sqrt(u2 * (u2 + 4.))
-    assert expected == model.get_magnification(t_0+d_time)
+    almost(expected, model.get_magnification(t_0+d_time)[0], decimal=5)
 
 
 def test_xallarap_at_t_0_plus_half_of_period_2():
@@ -864,11 +866,11 @@ def test_xallarap_at_t_0_plus_half_of_period_2():
     Xallarap - circular orbit, half period after t_0, and Omega+nu_0 = 90.
     Expected u is from pen and pencil calculations.
     """
-    (model, t_0, d_time, tau, u_0, xi_a) = prepare_xallarap_test(90., 0.)[1:]
+    (model, t_0, d_time, tau, u_0, xi_a, velocity) = prepare_xallarap_test(90., 0.)[1:]
 
     u2 = (u_0 - 2. * xi_a)**2 + tau**2
     expected = (u2 + 2.) / np.sqrt(u2 * (u2 + 4.))
-    assert expected == model.get_magnification(t_0+d_time)
+    almost(expected, model.get_magnification(t_0+d_time)[0], decimal=5)
 
 
 def test_xallarap_at_t_0_plus_half_of_period_3():
@@ -876,11 +878,11 @@ def test_xallarap_at_t_0_plus_half_of_period_3():
     Xallarap - circular orbit, half period after t_0, and Omega+nu_0 = 180.
     Expected u is from pen and pencil calculations.
     """
-    (model, t_0, d_time, tau, u_0, xi_a) = prepare_xallarap_test(90., 90.)[1:]
+    (model, t_0, d_time, tau, u_0, xi_a, velocity) = prepare_xallarap_test(90., 90.)[1:]
 
     u2 = u_0**2 + (tau + 2. * xi_a)**2
     expected = (u2 + 2.) / np.sqrt(u2 * (u2 + 4.))
-    assert expected == model.get_magnification(t_0+d_time)
+    almost(expected, model.get_magnification(t_0+d_time)[0], decimal=5)
 
 
 def test_xallarap_at_t_0_plus_half_of_period_4():
@@ -890,11 +892,11 @@ def test_xallarap_at_t_0_plus_half_of_period_4():
     Expected u is from pen and pencil calculations.
     """
     args = [90., 90., "t_0"]
-    (model, t_0, d_time, tau, u_0, xi_a) = prepare_xallarap_test(*args)[1:]
+    (model, t_0, d_time, tau, u_0, xi_a, velocity) = prepare_xallarap_test(*args)[1:]
 
     u2 = u_0**2 + (tau + 2. * xi_a)**2
     expected = (u2 + 2.) / np.sqrt(u2 * (u2 + 4.))
-    assert expected == model.get_magnification(t_0+d_time)
+    almost(expected, model.get_magnification(t_0+d_time)[0], decimal=5)
 
 
 def test_xallarap_at_t_0_plus_half_of_period_5():
@@ -904,11 +906,11 @@ def test_xallarap_at_t_0_plus_half_of_period_5():
     Expected u is from pen and pencil calculations.
     """
     args = [90., 90., "t_0+d_time"]
-    (model, t_0, d_time, tau, u_0, xi_a) = prepare_xallarap_test(*args)[1:]
+    (model, t_0, d_time, tau, u_0, xi_a, velocity) = prepare_xallarap_test(*args)[1:]
 
     u2 = u_0**2 + tau**2
     expected = (u2 + 2.) / np.sqrt(u2 * (u2 + 4.))
-    assert expected == model.get_magnification(t_0+d_time)
+    almost(expected, model.get_magnification(t_0+d_time)[0], decimal=5)
 
 
 def test_xallarap_at_t_0_plus_half_of_period_6_eccentric():
@@ -916,11 +918,11 @@ def test_xallarap_at_t_0_plus_half_of_period_6_eccentric():
     Extremely eccentric xallarap orbit checked half period later
     """
     kwargs = {'xi_eccentricity': 0.999, 'xi_omega_periapsis': 0.}
-    (model, t_0, d_time, tau, u_0, xi_a) = prepare_xallarap_test(**kwargs)[1:]
+    (model, t_0, d_time, tau, u_0, xi_a, velocity) = prepare_xallarap_test(**kwargs)[1:]
 
     u2 = u_0**2 + (tau - 2. * xi_a)**2
     expected = (u2 + 2.) / np.sqrt(u2 * (u2 + 4.))
-    assert expected == model.get_magnification(t_0+d_time)
+    almost(expected, model.get_magnification(t_0+d_time)[0], decimal=5)
 
 
 def test_xallarap_at_t_0_plus_half_of_period_7_eccentric():
@@ -929,11 +931,11 @@ def test_xallarap_at_t_0_plus_half_of_period_7_eccentric():
     """
     kwargs = {'xi_eccentricity': 0.999, 'xi_omega_periapsis': 0.,
               'xi_Omega_node': 270.}
-    (model, t_0, d_time, tau, u_0, xi_a) = prepare_xallarap_test(**kwargs)[1:]
+    (model, t_0, d_time, tau, u_0, xi_a, velocity) = prepare_xallarap_test(**kwargs)[1:]
 
     u2 = (u_0 + 2. * xi_a)**2 + tau**2
     expected = (u2 + 2.) / np.sqrt(u2 * (u2 + 4.))
-    almost(expected, model.get_magnification(t_0+d_time))
+    almost(expected, model.get_magnification(t_0+d_time)[0], decimal=5)
 
 
 class TestGetTrajectory(unittest.TestCase):

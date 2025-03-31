@@ -125,7 +125,7 @@ class ModelParameters(object):
         orbit = Orbit(**orbit_parameters)
         position = orbit.get_reference_plane_position([t_0_xi])
 
-        d_time = min(0.01 * orbit_parameters['period'], 0.1)
+        d_time = min(0.0001 * orbit_parameters['period'], 0.1)
         x_2 = orbit.get_reference_plane_position([t_0_xi+d_time])
         x_1 = orbit.get_reference_plane_position([t_0_xi-d_time])
         velocity = 0.5 * (x_2 - x_1) / d_time
