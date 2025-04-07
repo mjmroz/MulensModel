@@ -2,6 +2,7 @@ import numpy as np
 
 from MulensModel.uniformcausticsampling import UniformCausticSampling
 from MulensModel.orbits.orbit import Orbit
+from PyAstronomy import pyasl
 
 
 class ModelParameters(object):
@@ -119,9 +120,18 @@ class ModelParameters(object):
         orbit_parameters = {key[3:]: value
                             for (key, value) in zip_ if key[:3] == "xi_"}
         orbit_parameters['epoch_reference'] = t_0_xi
-        orbit = Orbit(**orbit_parameters)
-        return orbit.get_reference_plane_position([t_0_xi])
-
+        
+        orbit = pyasl.KeplerEllipse(a=orbit_parameters['semimajor_axis'],
+                                    per=orbit_parameters['period'],
+                                    e=orbit_parameters['eccentricity'],
+                                    Omega=orbit_parameters['Omega_node'],
+                                    i=orbit_parameters['inclination'],
+                                    w=orbit_parameters['argument_of_latitude_reference'],
+                                   )
+        positions=  orbit.xyzPos(t_0_xi)
+        positions =positions[0:1]
+        return positions
+    
     def __getattr__(self, item):
         (head, end) = self._split_parameter_name(item)
         if end is not None:

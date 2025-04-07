@@ -4,6 +4,7 @@ import numpy as np
 from astropy import units as u
 from astropy.coordinates import get_body_barycentric
 from astropy.time import Time
+from PyAstronomy import pyasl
 
 from MulensModel import utils
 from MulensModel.modelparameters import ModelParameters
@@ -89,9 +90,9 @@ class Trajectory(object):
             m = 'parameters is a required and must be a ModelParameters object'
             raise TypeError(m)
 
-        if self.parameters.is_xallarap:
-            warnings.warn("WARNING - xallarap calculations have a bug that is being corrected currently. "
-                          "Please contact RP if you need it now.")
+        #if self.parameters.is_xallarap:
+            #warnings.warn("WARNING - xallarap calculations have a bug that is being corrected currently. "
+            #              "Please contact RP if you need it now.")
 
         self._set_parallax_and_coords(parallax, coords, satellite_skycoord, earth_coords)
 
@@ -356,6 +357,14 @@ class Trajectory(object):
         orbit_parameters = {
             key[3:]: value for (key, value) in zip_ if key[:3] == "xi_"}
         orbit_parameters['epoch_reference'] = t_0_xi
-        orbit = Orbit(**orbit_parameters)
-        positions = orbit.get_reference_plane_position(self._times)
+        
+        orbit = pyasl.KeplerEllipse(a=orbit_parameters['semimajor_axis'],
+                                    per=orbit_parameters['period'],
+                                    e=orbit_parameters['eccentricity'],
+                                    Omega=orbit_parameters['Omega_node'],
+                                    i=orbit_parameters['inclination'],
+                                    w=orbit_parameters['argument_of_latitude_reference'],
+                                   )
+        positions=  orbit.xyzPos(self._times)
+        positions = positions[::,0:1]
         return positions - self.parameters.xallarap_reference_position
