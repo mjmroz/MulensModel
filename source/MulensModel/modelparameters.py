@@ -129,6 +129,7 @@ class ModelParameters(object):
         x_2 = orbit.get_reference_plane_position([t_0_xi+d_time])
         x_1 = orbit.get_reference_plane_position([t_0_xi-d_time])
         velocity = 0.5 * (x_2 - x_1) / d_time
+        velocity=np.array([velocity[0],velocity[0]])
         return (position, velocity)
 
     def __getattr__(self, item):
