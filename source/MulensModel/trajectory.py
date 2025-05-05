@@ -87,6 +87,7 @@ class Trajectory(object):
         else:
             m = 'parameters is a required and must be a ModelParameters object'
             raise TypeError(m)
+        
         self._set_parallax_and_coords(parallax, coords, satellite_skycoord, earth_coords)
 
         if times is None:
