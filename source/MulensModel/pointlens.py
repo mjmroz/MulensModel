@@ -4,6 +4,7 @@ from math import sin, cos, sqrt, log10
 from scipy import integrate
 from scipy.special import ellipk, ellipe
 # These are complete elliptic integrals of the first and the second kind.
+from scipy.interpolate import RegularGridInterpolator as RGI
 from sympy.functions.special.elliptic_integrals import elliptic_pi as ellip3
 
 import MulensModel as mm
@@ -555,15 +556,16 @@ class FiniteSourceLDYoo04Magnification(FiniteSourceUniformGould94Magnification):
         Gould A. 1994 ApJ 421L, 71 "Proper motions of MACHOs"
         https://ui.adsabs.harvard.edu/abs/1994ApJ...421L..71G/abstract
 
-        Yoo J. et al. 2004 ApJ 603, 139 "OGLE-2003-BLG-262: Finite-Source
-        Effects from a Point-Mass Lens"
+        Yoo J. et al. 2004 ApJ 603, 139 "OGLE-2003-BLG-262: Finite-Source Effects from a Point-Mass Lens"
         https://ui.adsabs.harvard.edu/abs/2004ApJ...603..139Y/abstract
 
         """
         if mask is not None:
             z = self.z_[mask]
+            b0 = self.b0[mask]
         else:
             z = self.z_
+            b0 = self.b0
 
         def function(r, theta):
             r_2 = r * r
@@ -578,12 +580,10 @@ class FiniteSourceLDYoo04Magnification(FiniteSourceUniformGould94Magnification):
             function.arg_1 = zz
             function.arg_2 = zz * zz
             function.arg_3 = -2. * zz
-            rho_W_1[i] = integrate.dblquad(
-                function, 0., 2. * np.pi, lim_0, lim_1)[0]
+            rho_W_1[i] = integrate.dblquad(function, 0., 2. * np.pi, lim_0, lim_1)[0]
 
         rho_W_1 /= np.pi
-
-        return self.b0 - 1.5 * z * rho_W_1
+        return b0 - 1.5 * z * rho_W_1
 
     @property
     def b1(self):
@@ -675,11 +675,12 @@ class FiniteSourceUniformWittMao94Magnification(_PointLensMagnification):
 
         return self._magnification
 
-    def _get_magnification_WM94(self, u):
+    def _get_magnification_WM94(self, u, rho=None):
         """
         Get point-lens finite-source magnification without LD.
         """
-        rho = self.trajectory.parameters.rho
+        if rho is None:
+            rho = self.trajectory.parameters.rho
 
         if u == rho:
             u2 = u**2
@@ -740,7 +741,10 @@ class FiniteSourceUniformWittMao94Magnification(_PointLensMagnification):
         cond_4 = (k <= self._ellip_data._interpolate_3_max_y)
 
         if cond_1 and cond_2 and cond_3 and cond_4:
-            return self._ellip_data._interpolate_3(n, k)[0]
+            if isinstance(self._ellip_data._interpolate_3, RGI):
+                return float(self._ellip_data._interpolate_3((n, k)).T)
+            else:
+                return self._ellip_data._interpolate_3(n, k)[0]
 
         return ellip3(n, k)
 

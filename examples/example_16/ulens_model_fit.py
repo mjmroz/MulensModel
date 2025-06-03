@@ -47,7 +47,7 @@ except Exception:
     raise ImportError('\nYou have to install MulensModel first!\n')
 
 
-__version__ = '0.42.1'
+__version__ = '0.44.2'
 
 
 class UlensModelFit(object):
@@ -275,25 +275,50 @@ class UlensModelFit(object):
             for negative values; the value provided should be on the order of
             *20.*
 
-            ``'color'`` - specify gaussian prior for colors of the sources.
-            Parameters:
-                *mean* and *sigma* are floats in magnitudes, *dataset_label*
-                are str defined in MulensData.plot_properties['label']
+            ``'negative_source_flux_sigma_mag'`` - impose a prior that disfavor models
+            with negative source flux (or negative flux for both sources in a binary source model)
+            by applying a Gaussian prior to negative values.
 
-            ``'color source 1'`` - specify gaussian prior for color of
-            the primary source in binary source model.
-            Parameters:
-                *mean* and *sigma* are floats in magnitudes, *dataset_label*
-                are str defined in MulensData.plot_properties['label']
+            ``'negative_source_1_flux_sigma_mag'`` - same as ``'negative_source_flux_sigma_mag'`` but applied only to
+            the primary source flux.
 
-            ``'color source 2'`` - specify gaussian prior for color of
-            the secondary source in binary source model.
+            ``'negative_source_2_flux_sigma_mag'`` - same as ``'negative_source_flux_sigma_mag'`` but applied only to
+            the secondary source flux.
+
+            ``'color'`` either *str* or *list* of str- specify gaussian prior for colors of the sources.
+            If *list* it will be used multiple times for each color
             Parameters:
-                *mean* and *sigma* are floats in magnitudes, *dataset_label*
-                are str defined in MulensData.plot_properties['label']
+                *mean* and *sigma* are floats in magnitudes, *dataset_label* are str defined in
+                MulensData.plot_properties['label'], e.g.,``color : gauss 0.3 0.01 "OGLE I-band" "OB03235_MOA.txt"``
+
+            ``'color source 1'`` same as ``'color'`` but applied only to the primary source flux.
+
+            ``'color source 2'`` same as ``'color'`` but applied only to the secondary source flux.
+
+            ``'2 sources flux ratio'`` — either *str* or *list* of *str*. Specifies a Gaussian prior to maintain the
+            flux ratio consistency of sources in binary source models across all datasets taken in the same passband.
+            If a *list*, it will be applied multiple times for each passband.
+            Parameters :
+            either *dataset_label* or *float*: A string defined in `MulensData.plot_properties['label']`.
+            The first *dataset_label* refers to the reference dataset, from which the mean of the Gaussian prior
+            will be calculated.
+            If *float* the mean will be fixed to the provided value.
+            *sigma**: A float representing the flux ratio uncertainty.
+            *dataset_label*: Strings defined in `MulensData.plot_properties['label']`, corresponding to all
+                other datasets in the same passband.
+            e.g: ``2 sources flux ratio : gauss "OGLE I-band" 0.1 "LCO_I-band.txt"``
+
+            ``'2 source flux size relation'`` *str* - Specifies a Gaussian prior flux_1/flux_2 = (rho_1/rho_2)^k
+            in binary source models.
+            Parameters:
+                *k*: Exponent of the relation. In most cases, k=2.
+                *sigma*: A float representing the uncertainty of the relation.
+                *dataset_label*: A string defined in `MulensData.plot_properties['label']`, specifying for which
+                    datasets the prior should be used. If `None`, the relation will be applied to all datasets.
+            e.g.: ``2 source flux size relation : gauss 2. 0.1``
 
             ``'prior'`` - specifies the priors for quantities. It's also
-            a *dict*. Possible key-value pairs:
+                a *dict*. Possible key-value pairs:
 
                 ``'t_E': 'Mroz et al. 2017'`` - efficiency-corrected t_E
                 distribution from that paper with two modifications: 1) it is
@@ -334,7 +359,7 @@ class UlensModelFit(object):
             The values are also dicts and currently accepted keys are:
             1) for ``best model``:
             ``'file'``,``'interactive' ``'time range'``, ``'magnitude range'``,
-            ``'legend'``,`and ``'rcParams'``,
+            ``'title'``,``'legend'``,`and ``'rcParams'``,
             2) for ``triangle`` and ``trace``:
             ``'file'`` and ``'shift t_0'`` (*bool*, *True* is default)
             3) for ``trajectory``:
@@ -358,6 +383,7 @@ class UlensModelFit(object):
                       'interactive' : 'my_fit_best.html'
                       'time range': 2456000. 2456300.
                       'magnitude range': 15.123 13.012
+                      'title': 'my fit best'
                       'legend':
                           'ncol': 2
                           'loc': 'lower center'
@@ -694,8 +720,9 @@ class UlensModelFit(object):
             if self._plots is not None and 'triangle' in self._plots:
                 required_packages.add('corner')
 
-        if self._plots['best model'] and 'interactive' in self._plots['best model']:
-            required_packages.add('plotly')
+        if self._plots is not None:
+            if 'interactive' in self._plots.get('best model', {}):
+                required_packages.add('plotly')
 
         failed = import_failed.intersection(required_packages)
 
@@ -732,13 +759,15 @@ class UlensModelFit(object):
         self._get_parameters_ordered()
         self._get_parameters_latex()
         self._set_prior_limits()
-        self._parse_fit_constraints()
+
         if self._fit_method == "EMCEE":
             self._parse_starting_parameters()
 
         self._check_fixed_parameters()
         self._make_model_and_event()
         self._parse_fitting_parameters()
+        self._parse_fit_constraints()
+
         if self._fit_method == "EMCEE":
             self._get_starting_parameters()
 
@@ -818,7 +847,7 @@ class UlensModelFit(object):
         Check if parameters of best model make sense
         """
         allowed = set(['file', 'time range', 'magnitude range', 'legend',
-                       'rcParams', 'second Y scale', 'interactive'])
+                       'rcParams', 'second Y scale', 'interactive', 'title'])
         unknown = set(self._plots['best model'].keys()) - allowed
         if len(unknown) > 0:
             raise ValueError(
@@ -855,6 +884,9 @@ class UlensModelFit(object):
         if 'second Y scale' in self._plots['best model']:
             self._check_plots_parameters_best_model_Y_scale()
 
+        if 'title' in self._plots['best model']:
+            self._check_plots_parameters_best_model_title()
+
     def _set_time_range_for_plot(self, plot_type):
         """
         set time range for best model or triangle plots
@@ -879,6 +911,14 @@ class UlensModelFit(object):
         """
         Check if there is no problem with interactive best plot
         """
+        pass
+
+    def _check_plots_parameters_best_model_title(self):
+        """
+        Check if there is no problem with best model title
+        """
+        pass
+
     def _check_plots_parameters_best_model_Y_scale(self):
         """
         Check if parameters for second Y scale make sense.
@@ -1675,24 +1715,33 @@ class UlensModelFit(object):
         """
         Validate the keys in the provided fit_constraints.
         """
-        allowed_keys_flux = {
-            "no_negative_blending_flux", "negative_blending_flux_sigma_mag"}
+        allowed_keys_blending_flux = {"no_negative_blending_flux", "negative_blending_flux_sigma_mag"}
+        allowed_keys_source_flux = {"negative_source_flux_sigma_mag", "negative_source_1_flux_sigma_mag",
+                                    "negative_source_2_flux_sigma_mag"}
+        allowed_keys_ratio = {"2 sources flux ratio"}
+        allowed_keys_size = {'2 source flux size relation'}
         allowed_keys_color = {'color', 'color source 1', 'color source 2'}
-        allowed_keys = {*allowed_keys_flux, *allowed_keys_color,
-                        "prior", "posterior parsing"}
+
+        allowed_keys = {*allowed_keys_blending_flux, *allowed_keys_color, *allowed_keys_source_flux,
+                        *allowed_keys_ratio, *allowed_keys_size, "prior", "posterior parsing"}
 
         used_keys = set(self._fit_constraints.keys())
         if len(used_keys - allowed_keys) > 0:
             raise ValueError('unrecognized constraint: {:}'.format(
                 used_keys - allowed_keys))
-        if len(used_keys.intersection(allowed_keys_flux)) == 2:
+        if len(used_keys.intersection(allowed_keys_blending_flux)) == 2:
             raise ValueError(
                 'you cannot specify both no_negative_blending_flux and ' +
                 'negative_blending_flux_sigma_mag')
+
         if "no_negative_blending_flux" not in self._fit_constraints:
             self._fit_constraints["no_negative_blending_flux"] = False
 
-        self._check_color_constraints_conflict(allowed_keys_color)
+        self._check_flux_constraints_conflict(allowed_keys_color, 'color')
+        self._check_flux_constraints_conflict(allowed_keys_source_flux, 'flux')
+
+        self._check_ratio_constraints_conflict(allowed_keys_ratio)
+        self._check_size_constraints_conflict(allowed_keys_size)
 
     def _set_default_fit_constraints(self):
         """
@@ -1701,17 +1750,50 @@ class UlensModelFit(object):
         self._fit_constraints = {"no_negative_blending_flux": False}
         self._parse_posterior_abs = list()
 
-    def _check_color_constraints_conflict(self, allowed_keys_color):
+    def _check_ratio_constraints_conflict(self, allowed_keys_ratio):
         """
-        Check for conflicts among color constraints.
+        Check for conflicts among 2 source flux ratio constraints.
+        """
+        self._check_binary_source(allowed_keys_ratio)
+
+    def _check_size_constraints_conflict(self, allowed_keys_size):
+        """
+        Check for conflicts among 2 source flux size relation constraints.
+        """
+        for key in allowed_keys_size:
+            if key not in self._fit_constraints:
+                continue
+            self._check_binary_source({key})
+            needed = ['rho_1', 'rho_2']
+            for parameter in needed:
+                if parameter not in self._fit_parameters_unsorted:
+                    raise ValueError("2 source flux size relation constraints should be used only with finite " +
+                                     "source model, so " + parameter + " should be defined")
+
+    def _check_binary_source(self, allowed_keys):
+        """
+        Check if fitted model is a binary source model
+        """
+        for key in allowed_keys:
+            if key in self._fit_constraints:
+                if self._model.n_sources != 2:
+                    raise ValueError(key + ' fitting prior should be used only with binary source model')
+
+    def _check_flux_constraints_conflict(self, allowed_keys, instance):
+        """
+        Check for conflicts among flux or color constraints.
         """
         used_keys = set(self._fit_constraints.keys())
+        if instance == 'color':
+            key = 'color'
+        elif instance == 'flux':
+            key = 'negative_source_flux_sigma_mag'
 
-        if len(used_keys.intersection(allowed_keys_color)) >= 2:
-            if 'color' in used_keys:
+        if len(used_keys.intersection(allowed_keys)) >= 2:
+            if key in used_keys:
                 raise ValueError(
-                    'You cannot specify both color and ' +
-                    str(used_keys.intersection(allowed_keys_color)-{'color'}))
+                    'You cannot specify both ' + key + ' and ' +
+                    str(used_keys.intersection(allowed_keys)-{key}))
 
     def _parse_fit_constraints_fluxes(self):
         """
@@ -1719,39 +1801,103 @@ class UlensModelFit(object):
         """
         for key, value in self._fit_constraints.items():
             if key == "negative_blending_flux_sigma_mag":
-                self._parse_fit_constraints_soft_blending(key, value)
+                self._parse_fit_constraints_soft_no_negative(key, value)
             elif key in ['color', 'color source 1', 'color source 2']:
-                self._parse_fit_constraints_color(key, value)
+                self._parse_fit_constraints_ratios(key, value, 'color')
+            elif key in ['2 sources flux ratio']:
+                self._parse_fit_constraints_ratios(key, value, 'flux')
+            elif key in ['2 source flux size relation']:
+                self._parse_fit_constraints_size(key, value)
+            elif key in ["negative_source_flux_sigma_mag", "negative_source_1_flux_sigma_mag",
+                         "negative_source_2_flux_sigma_mag"]:
+                self._parse_fit_constraints_soft_no_negative(key, value)
 
-    def _parse_fit_constraints_soft_blending(self, key, value):
+    def _parse_fit_constraints_soft_no_negative(self, key, value):
         """
-        Check if soft fit constraint on blending flux are correctly defined.
+        Check if soft fit constraint on fluxes are correctly defined.
         """
         if isinstance(value,  float):
             sigma = float(value)
             sets = list(range(len(self._datasets)))
-
         else:
-
             sigma = float(value.split()[0])
-            sets = list(map(self._get_no_of_dataset,
-                            shlex.split(value, posix=False)[1:]))
-            if len(sets) > len(self._datasets):
-                raise ValueError(
-                    "dataset number specified in" +
-                    "negative_blending_flux_sigma_mag" +
-                    "do not match with provided datasets")
+            sets = self._fill_no_of_datasets(shlex.split(value, posix=False)[1:], key)
 
         self._fit_constraints[key] = [
             mm.Utils.get_flux_from_mag(sigma), sets]
 
-    def _parse_fit_constraints_color(self, key, value):
+    def _parse_fit_constraints_ratios(self, key, values, instance):
         """
-        Check if fit constraint on color are correctly defined.
+        Check if fit constraint on flux ratios are correctly defined.
+        """
+        if instance == 'color':
+            get_settings = self._get_settings_fit_constraints_color
+        if instance == 'flux':
+            get_settings = self._get_settings_fit_constraints_ratio
+
+        self._check_unique_datasets_labels()
+        settings_all = []
+        if isinstance(values, str):
+            settings_all = [get_settings(key, values)]
+        elif isinstance(values, list):
+            for value in values:
+                settings_all.append(get_settings(key, value))
+        else:
+            raise TypeError('Type error in parsing: ' + key)
+
+        self._fit_constraints[key] = settings_all
+        self._flat_priors = False
+
+    def _parse_fit_constraints_size(self, key, value):
+        """
+        Check if fit constraint on flux-size relation of 2 sources is correctly defined.
         """
         self._check_unique_datasets_labels()
-        words = shlex.split(value, posix=False)
+        settings = shlex.split(value, posix=False)
 
+        if settings[0] != 'gauss':
+            raise NotImplementedError('In ' + key + ", only Gaussian prior is implemented. Please specify `gauss`.")
+        try:
+            for i in range(1, 3):
+                settings[i] = float(settings[i])
+        except Exception:
+            raise ValueError('error in parsing: ' + key + " " + settings[i])
+
+        # power exponent
+        if settings[1] < 0.:
+            warnings.warn('In ' + key + ' flux most likely should increase with rho, hence the exponent `k` \
+                in the relation flux_1/flux_2 = (rho_1/rho_2)^k should be positive, instead of ' + settings[1])
+        power = settings[1]
+        # sigma
+        if settings[2] < 0.:
+            raise ValueError('sigma in' + key+' cannot be negative: ' + settings[2])
+        sigma = settings[2]
+
+        if len(settings) == 3:
+            sets = list(range(len(self._datasets)))
+        else:
+            sets = self._fill_no_of_datasets(settings[3:], key)
+
+        self._fit_constraints[key] = [settings[0], power, sigma, sets]
+        self._flat_priors = False
+
+    def _fill_no_of_datasets(self, values, key):
+        """
+        For a list with datasets labels return list with theirs indexes
+        """
+        sets = list(map(self._get_no_of_dataset, values))
+        if len(sets) > len(self._datasets):
+            raise ValueError(
+                "dataset specified in" +
+                key +
+                "should not repeat")
+        return sets
+
+    def _get_settings_fit_constraints_color(self, key, value):
+        """
+        Get settings of fit constraint on color.
+        """
+        words = shlex.split(value, posix=False)
         if len(words) != 5 or words[0] != 'gauss':
             msg = "Something went wrong in parsing prior for "
             msg += "{:}: {:}"
@@ -1776,11 +1922,44 @@ class UlensModelFit(object):
                 "in " + key + " color have to be from different datasets")
         n = len(self._datasets)-1
         if (0 >= settings[3] >= n) or (0 >= settings[4] >= n):
-            raise ValueError(
-                "label specified in color prior" +
-                "do not match with provided datasets")
+            raise ValueError("label specified in color prior do not match with provided datasets")
 
-        self._fit_constraints[key] = settings
+        return settings
+
+    def _get_settings_fit_constraints_ratio(self, key, value):
+        """
+        Get settings of fit constraint on flux ratio of 2 sources.
+        """
+        settings = shlex.split(value, posix=False)
+        if settings[0] != 'gauss':
+            raise NotImplementedError('In ' + key + ", only Gaussian prior is implemented. Please specify `gauss`.")
+        try:
+            settings[1] = self._get_no_of_dataset(settings[1])
+        except Exception:
+            try:
+                settings[1] = float(settings[1])
+                warnings.warn('In: ' + key + ", mean of gaussian prior fix to " + str(settings[1]))
+                if settings[1] < 0.:
+                    raise ValueError('Mean in' + key + ' cannot be negative: ' + str(settings[1]))
+            except Exception:
+                raise ValueError('error in parsing: ' + key + " " + str(settings[1]))
+        try:
+            settings[2] = float(settings[2])
+        except Exception:
+            raise ValueError('error in parsing: ' + key + " " + settings[2])
+        if settings[2] < 0.:
+            raise ValueError('sigma in' + key + ' cannot be negative: ' + settings[2])
+
+        n = len(self._datasets)-1
+        for i in range(3, len(settings)):
+            settings[i] = self._get_no_of_dataset(settings[i])
+            if (0 >= settings[i] >= n):
+                raise ValueError("label specified in 2 sources flux ratio prior do not match with provided datasets")
+
+        if len(settings[3:]) != len(set(settings[3:])) or settings[1] in settings[3:]:
+            raise ValueError('datesets' + key+' cannot repeat themselves : ' + str(settings[1:]))
+
+        return settings
 
     def _check_unique_datasets_labels(self):
         """
@@ -2286,12 +2465,9 @@ class UlensModelFit(object):
 
         NOTE: we're using np.log(), i.e., natural logarithms.
         """
-        if self._fit_method == "EMCEE":
-            ln_prior = self._ln_prior(theta)
-            if not np.isfinite(ln_prior):
-                return self._return_ln_prob(-np.inf)
-        elif self._fit_method == "UltraNest":
-            ln_prior = self._ln_prior_t_E() if self._prior_t_E else 0.
+        ln_prior = self._ln_prior(theta)
+        if not np.isfinite(ln_prior):
+            return self._return_ln_prob(-np.inf)
 
         ln_like = self._ln_like(theta)
         if not np.isfinite(ln_like):
@@ -2367,24 +2543,27 @@ class UlensModelFit(object):
         inside = 0.
         outside = -np.inf
 
-        for (index, limit) in self._min_values_indexed.items():
-            if theta[index] < limit:
-                return outside
+        if self._fit_method == "EMCEE":
+            for (index, limit) in self._min_values_indexed.items():
+                if theta[index] < limit:
+                    return outside
 
-        for (index, limit) in self._max_values_indexed.items():
-            if theta[index] > limit:
-                return outside
+            for (index, limit) in self._max_values_indexed.items():
+                if theta[index] > limit:
+                    return outside
 
-        if "x_caustic_in" in self._model.parameters.parameters:
-            self._set_model_parameters(theta)
-            if not self._check_valid_Cassan08_trajectory():
-                return outside
+            if "x_caustic_in" in self._model.parameters.parameters:
+                self._set_model_parameters(theta)
+                if not self._check_valid_Cassan08_trajectory():
+                    return outside
 
         ln_prior = inside
 
         if self._prior_t_E is not None:
             self._set_model_parameters(theta)
             ln_prior += self._ln_prior_t_E()
+        if self._fit_method == "UltraNest":
+            return ln_prior
 
         if self._priors is not None:
             self._set_model_parameters(theta)
@@ -2508,7 +2687,98 @@ class UlensModelFit(object):
 
         return fluxes
 
-    def _sumup_inside_prior(self, fluxes, key, inside, index_plus):
+    def _run_flux_checks_ln_prior(self, fluxes):
+        """
+        Run the checks on fluxes - are they in the prior?
+        """
+        inside = 0.
+        outside = -np.inf
+
+        if self._fit_constraints["no_negative_blending_flux"]:
+            blend_index = self._n_fluxes_per_dataset - 1
+            if fluxes[blend_index] < 0.:
+                return outside
+
+        inside += self._apply_negative_flux_sigma_mag_prior(fluxes)
+
+        if self._fit_method == "EMCEE":
+            inside += self._apply_color_prior(fluxes)
+            inside += self._apply_2source_prior(fluxes)
+
+        return inside
+
+    def _apply_negative_flux_sigma_mag_prior(self, fluxes):
+        """
+        Apply the negative flux sigma magnitude prior.
+        """
+        inside = 0.0
+
+        key = "negative_blending_flux_sigma_mag"
+        if key in self._fit_constraints:
+            inside += self._sumup_flux_prior(fluxes, key, self._n_fluxes_per_dataset-1)
+
+        key = "negative_source_flux_sigma_mag"
+        if key in self._fit_constraints:
+            for i in range(self._n_fluxes_per_dataset - 1):
+                inside += self._sumup_flux_prior(fluxes, key, i)
+
+        key = "negative_source_1_flux_sigma_mag"
+        if key in self._fit_constraints:
+            inside += self._sumup_flux_prior(fluxes, key, 0)
+
+        key = "negative_source_2_flux_sigma_mag"
+        if key in self._fit_constraints:
+            inside += self._sumup_flux_prior(fluxes, key, 1)
+
+        return inside
+
+    def _sumup_flux_prior(self, fluxes, key, index_plus):
+        """
+        Calculates the contribution to the ln_prior
+        from specified no negative flux constraints
+        Parameters :
+            fluxes: *array*
+                Array with fluxes of the current model.
+            key: *str*
+                constrain key.
+            inside: *float*
+                ln_prior contribution
+            index_plus: *int*
+                For a single source, index_plus=0;
+                for a binary source, index_plus=0 or 1.;
+                for blend flux index_plus=self._n_fluxes_per_dataset-1
+            inside: *float*
+                Evaluated ln_prior contribution
+        """
+        inside = 0.0
+        sigma, datasets = self._fit_constraints[key]
+        for i, dataset in enumerate(self._datasets):
+            if i in datasets:
+                index = self._get_index_of_flux(i, index_plus)
+                if fluxes[index] < 0.0:
+                    inside += -0.5 * (fluxes[index] / sigma) ** 2
+        return inside
+
+    def _apply_color_prior(self, fluxes):
+        """
+        Apply the color constraints.
+        """
+        inside = 0.0
+        key = 'color'
+        if key in self._fit_constraints:
+            for i in range(self._n_fluxes_per_dataset - 1):
+                inside += self._sumup_inside_color_prior(fluxes, key, i)
+
+        key = 'color source 1'
+        if key in self._fit_constraints:
+            inside += self._sumup_inside_color_prior(fluxes, key, 0)
+
+        key = 'color source 2'
+        if key in self._fit_constraints:
+            inside += self._sumup_inside_color_prior(fluxes, key, 1)
+        return inside
+
+    def _sumup_inside_color_prior(self, fluxes, key, index_plus):
         """
         Calculates the contribution to the ln_prior
         from specified color constraints
@@ -2526,68 +2796,94 @@ class UlensModelFit(object):
             inside: *float*
                 Evaluated ln_prior contribution
         """
-        settings = self._fit_constraints[key]
-        index1 = (settings[3])*self._n_fluxes_per_dataset + index_plus
-        index2 = (settings[4])*self._n_fluxes_per_dataset + index_plus
-        value = mm.Utils.get_mag_from_flux(
-            fluxes[index1])-mm.Utils.get_mag_from_flux(fluxes[index2])
-        inside += self._get_ln_prior_for_1_parameter(value, settings[:-2])
+        inside = 0.0
+        settings_all = self._fit_constraints[key]
+        for settings in settings_all:
+            index1 = self._get_index_of_flux(settings[3], index_plus)
+            index2 = self._get_index_of_flux(settings[4], index_plus)
+            value = mm.Utils.get_mag_from_flux(
+                fluxes[index1])-mm.Utils.get_mag_from_flux(fluxes[index2])
+            inside += self._get_ln_prior_for_1_parameter(value, settings[:-2])
 
         return inside
 
-    def _run_flux_checks_ln_prior(self, fluxes):
+    def _apply_2source_prior(self, fluxes):
         """
-        Run the checks on fluxes - are they in the prior?
-        """
-        inside = 0.
-        outside = -np.inf
-
-        if self._fit_constraints["no_negative_blending_flux"]:
-            blend_index = self._n_fluxes_per_dataset - 1
-            if fluxes[blend_index] < 0.:
-                return outside
-
-        inside += self._apply_negative_blending_flux_sigma_mag_prior(fluxes)
-        if self._fit_method == "EMCEE":
-            inside += self._apply_color_prior(fluxes)
-
-        return inside
-
-    def _apply_negative_blending_flux_sigma_mag_prior(self, fluxes):
-        """
-        Apply the negative blending flux sigma magnitude priotr.
+        Apply priors of binnary sources
         """
         inside = 0.0
-        key = "negative_blending_flux_sigma_mag"
+        inside += self._apply_2source_ratio_prior(fluxes)
+        inside += self._apply_2source_size_prior(fluxes)
+        return inside
 
+    def _apply_2source_ratio_prior(self, fluxes):
+        """
+        Apply prior on flux ratio of binnary sources
+        """
+        inside = 0.0
+        name = '2 sources flux ratio'
+        for i, key in enumerate(self._fit_constraints):
+            if key == name:
+                settings_all = self._fit_constraints[key]
+                for settings in settings_all:
+                    inside += self._sumup_2sources_prior(settings, fluxes)
+        return inside
+
+    def _apply_2source_size_prior(self, fluxes):
+        """
+        Apply prior on flux-size relation of binnary sources
+        """
+        inside = 0.0
+        key = '2 source flux size relation'
         if key in self._fit_constraints:
-            sigma, datasets = self._fit_constraints[key]
+            prior_type, power, sigma, datasets = self._fit_constraints[key]
+
+            rho_ratio = self._model.parameters.parameters['rho_1']/self._model.parameters.parameters['rho_2']**power
             for i, dataset in enumerate(self._datasets):
                 if i in datasets:
-                    blend_index = ((i + 1) * self._n_fluxes_per_dataset) - 1
-                    if fluxes[blend_index] < 0.0:
-                        inside += -0.5 * (fluxes[blend_index] / sigma) ** 2
+                    index1 = self._get_index_of_flux(i, 0)
+                    index2 = self._get_index_of_flux(i, 1)
+                    flux_ratio = fluxes[index1]/fluxes[index2]
+                    inside += self._get_ln_prior_for_1_parameter(rho_ratio, [prior_type, flux_ratio, sigma])
 
         return inside
 
-    def _apply_color_prior(self, fluxes):
+    def _sumup_2sources_prior(self, settings, fluxes):
         """
-        Apply the color constraints.
+        Sumup prior on flux ratio of binnay sources from dataset in the same passbad
         """
         inside = 0.0
-        key = 'color'
-        if key in self._fit_constraints:
-            for i in range(self._n_fluxes_per_dataset - 1):
-                inside += self._sumup_inside_prior(fluxes, key, inside, i)
+        if isinstance(settings[1], int):
+            index1 = self._get_index_of_flux(settings[1], 0)
+            index2 = self._get_index_of_flux(settings[1], 1)
+            ref_ratio = fluxes[index1]/fluxes[index2]
+        elif isinstance(settings[1], float):
+            ref_ratio = settings[1]
 
-        key = 'color source 1'
-        if key in self._fit_constraints:
-            inside += self._sumup_inside_prior(fluxes, key, inside, 0)
+        for i in range(3, len(settings)):
+            index1 = self._get_index_of_flux(settings[i], 0)
+            index2 = self._get_index_of_flux(settings[i], 1)
+            ratio = fluxes[index1]/fluxes[index2]
+            inside += self._get_ln_prior_for_1_parameter(ratio, [settings[0], ref_ratio, settings[2]])
 
-        key = 'color source 2'
-        if key in self._fit_constraints:
-            inside += self._sumup_inside_prior(fluxes, key, inside, 1)
         return inside
+
+    def _get_index_of_flux(self, index_dataset, index_plus):
+        """
+        returns index of flux
+        Parameters :
+            index_dataset: *int*
+                index of data set as define in input yaml
+
+            index_plus: *int*
+                For a single source, index_plus=0;
+                for a binary source, index_plus=0 or 1.
+                for blend flux index_plus=self._n_fluxes_per_dataset-1
+
+        Returns :
+            flux_index: *int*
+        """
+        return (index_dataset)*self._n_fluxes_per_dataset + index_plus
 
     def _update_best_model_EMCEE(self, ln_prob, theta, fluxes):
         """
@@ -2901,7 +3197,7 @@ class UlensModelFit(object):
         if self._yaml_results:
             self._print_yaml_best_model()
 
-        if self._shift_t_0 and self._yaml_results:
+        if hasattr(self, "_shift_t_0_val") and self._shift_t_0 and self._yaml_results:
             print("Plots shift_t_0 : {:}".format(self._shift_t_0_val), **self._yaml_kwargs)
 
     def _extract_posterior_samples_EMCEE(self):
@@ -3096,6 +3392,10 @@ class UlensModelFit(object):
         else:
             self._ln_like(self._best_model_theta)
             print("chi2: {:.4f}".format(self._event.get_chi2()))
+            fluxes = self._get_fluxes()
+            ln_prior_flux = self._run_flux_checks_ln_prior(fluxes)
+            ln_prior = self._ln_prior(self._best_model_theta)
+            print("ln_prior: {:.4f}".format(ln_prior_flux+ln_prior))
         print(*self._fit_parameters)
         print(*list(self._best_model_theta))
         if self._return_fluxes:
@@ -3123,7 +3423,12 @@ class UlensModelFit(object):
                         mode['parameters'][self._n_fit_parameters:])
             chi2 = mode['chi2']
 
+        fluxes = self._get_fluxes()
+        ln_prior_flux = self._run_flux_checks_ln_prior(fluxes)
+        ln_prior = ln_prior_flux + self._ln_prior(self._best_model_theta)
+
         yaml_txt += (begin + "  chi2: {:.4f}\n").format(chi2)
+        yaml_txt += (begin + "  ln_prior: {:.4f}\n").format(ln_prior)
         yaml_txt += begin + "  Parameters:\n"
         format_ = begin + "    {:}: {:}\n"
         for (parameter, results_) in zip_1:
@@ -3481,9 +3786,8 @@ class UlensModelFit(object):
         # the best model.
 
         self._reset_rcParams()
-        if 'rcParams' in self._plots['best model']:
-            for (key, value) in self._plots['best model']['rcParams'].items():
-                rcParams[key] = value
+        for (key, value) in self._plots['best model'].get('rcParams', {}).items():
+            rcParams[key] = value
 
         kwargs_all = self._get_kwargs_for_best_model_plot()
         (kwargs_grid, kwargs_model, kwargs, xlim, t_1, t_2) = kwargs_all[:6]
@@ -3498,6 +3802,8 @@ class UlensModelFit(object):
         fluxes = self._event.get_ref_fluxes()
 
         self._plot_models_for_best_model_plot(fluxes, kwargs_model)
+
+        self._plot_title_for_best_model_plot()
 
         self._plot_legend_for_best_model_plot()
         plt.xlim(*xlim)
@@ -3675,6 +3981,20 @@ class UlensModelFit(object):
                     print(self._plots['best model']['legend'], "\n")
                     raise
 
+    def _plot_title_for_best_model_plot(self):
+        """
+        Creates title for the best model plot
+        """
+        if 'title' in self._plots['best model']:
+            try:
+                plt.title(self._plots['best model']['title'])
+            except Exception:
+                print("\npyplot.title() failed with kwargs:")
+                print(self._plots['best model']['title'], "\n")
+                raise
+        else:
+            return
+
     def _mark_second_Y_axis_in_best_plot(self):
         """
         Mark the second (right-hand side) scale for Y axis in
@@ -3846,9 +4166,8 @@ class UlensModelFit(object):
         self._ln_like(self._best_model_theta)  # Sets all parameters to the best model.
 
         self._reset_rcParams()
-        if 'rcParams' in self._plots['best model']:
-            for (key, value) in self._plots['best model']['rcParams'].items():
-                rcParams[key] = value
+        for (key, value) in self._plots['best model'].get('rcParams', {}).items():
+            rcParams[key] = value
 
         kwargs_all = self._get_kwargs_for_best_model_plot()
         (ylim, ylim_residuals) = self._get_ylim_for_best_model_plot(*kwargs_all[4:6])
