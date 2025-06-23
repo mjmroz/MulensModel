@@ -1,6 +1,6 @@
 photometry_files:
     - {file_name: data/OB03235/OB03235_OGLE.txt, bandpass: I, plot_properties: {zorder: 10., color: red, label: "OGLE I-band"}, scale_errorbars: {factor: 1.5, minimum: 0.001}}
-    - {file_name: data/OB03235/OB03235_MOA.txt, phot_fmt: flux}
+    - {file_name: data/OB03235/OB03235_MOA.txt, phot_fmt: flux, bad : data/OB03235/OB03235_MOA_bad.txt}
 # To add satellite ephemeris:
 #    - {file_name: some_K2_data.txt, phot_fmt: flux, bandpass: 'Kp', ephemerides_file: K2_ephemeris_01.dat}
 # For files with time starting with 245...:
@@ -121,6 +121,10 @@ fitting_parameters:
     progress: True
     posterior file: ob03235_2_models.npy
     posterior file fluxes: all
+    # Above can be also a list of dataset indexes, e.g.,
+    # posterior file fluxes: ["OGLE I-band"]
+    posterior file thin: 50
+    # Above is used to reduce the size of output posterior file.
     ## MultiNest only (basename, multimodal, evidence tolerance=0.5)
     # basename: out_ob08092_O4_MN-
     # multimodal: True
@@ -143,7 +147,8 @@ plots:
         interactive : ob03235_2_model.html
         time range: 2452820 2452855
         magnitude range: 19.3 16.9
-        title: "ob03235_2_model"
+        title: OB03235 plot
+        model label: I-band model
         rcParams:
         # This allows setting many matplotlib parameters, e.g.:
             font.size: 14
@@ -152,6 +157,7 @@ plots:
             ncol: 2
             # makes legend in 2 columns
             loc: lower center
+            fontsize: small
         second Y scale:
         # This adds second Y axis to the right side. Only magnifications key is required.
             magnifications: optimal
@@ -163,8 +169,15 @@ plots:
             # The list of labels above can not be given if magnifications = "optimal"
             label: What is shown on this axis?
             color: magenta
+        model label: "I-band model"
+        legend:
+            fontsize: small
+        add models:
+            - {'limb darkening u': 'g', 'label': 'g-band model', 'color': 'slateblue'}
+            - {'limb darkening u': -1.00, 'label': 'strange model', 'zorder': -10, 'linestyle': 'dashed'}
     trajectory:
         file: ob03235_2_trajectory.png
+        interactive : ob03235_2_trajectory.html
         time range: 2452700 2452855
     triangle:
         file: ob03235_2_triangle.png
