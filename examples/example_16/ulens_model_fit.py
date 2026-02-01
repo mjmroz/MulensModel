@@ -702,7 +702,9 @@ class UlensModelFit(object):
                     | set(self._other_parameters)
                 unknown = keys - allowed
                 if unknown:
-                    raise KeyError('Unknown keys in starting_parameters: ' + str(unknown))
+                    not_ERR_keys = [~x.startswith('ERR') for x in unknown]
+                    if True in  not_ERR_keys:
+                        raise KeyError('Unknown keys in starting_parameters: ' + str(unknown[not_ERR_keys]))
                 in_type = 'mix'
         else:
             in_type = 'draw'
