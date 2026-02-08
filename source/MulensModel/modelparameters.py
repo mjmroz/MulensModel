@@ -1795,6 +1795,62 @@ class ModelParameters(object):
         else:
             raise AttributeError('rho_2 is not a parameter of this model.')
 
+    def get_lens_geometry(self, epoch):
+        """
+        Returns the geometry of the lens system at a given epoch or epochs (if orbital motion parameters are set).
+        Needed for VBM.SetLensGeometry()
+
+        Arguments :
+            epoch: *float*, *list*, *np.ndarray*
+                The time(s) at which to calculate the geometry.
+        Returns :
+            geometry: *array* of shape (N x self.n_lenses * 3)
+                The geometry of the lens system at given epochs. N = 1
+                or N = the number of epochs, if the orbital motion parameters are set.
+                for each lens two coridantes and it mass shoule be spefified. For example:
+                geometry =    [[0,0,1,            # First lens: x1_1, x1_2, m1
+                                1,-0.7,1.e-4,     # Second lens: x2_1, x2_2, m2
+                                2,0.7,1.e-4,      # Third lens: x3_1, x3_2, m3
+                                0.6,-.6,1.e-6]]   # Fourth lens: x4_1, x4_2, m4
+        """
+        if self.lens_geometry is not None:
+            if 'ds_dt' not in self.parameters.keys():
+                return [self.lens_geometry]
+            else:
+                raise NotImplementedError(
+                    "Orbital motion parameters are not yet implemented for multiple lens geometry.")
+        else:
+            self.lens_geometry = self.set_lens_geometry()
+            if 'ds_dt' not in self.parameters.keys():
+                return [self.lens_geometry]
+            else:
+                raise NotImplementedError(
+                    "Orbital motion parameters are not yet implemented for multiple lens geometry.")
+
+    def set_lens_geometry(self):
+        """
+        Cauculates the geometry of the lens system based on provided parameters. curently works only for 2 and 3 lenses
+        """
+        if self._n_lenses > 1:
+            s_12 = self.s
+            q_12 = self.q
+
+            L_1 = [-s_12*q_12/(1+q_12), 0., 1.]  # primary lens with mass=1 for Einstain units
+            L_2 = [s_12/(1+q_12), 0., q_12]  # secondary lens with mass=1*q_12
+            geometry = L_1 + L_2
+        if self._n_lenses == 3:
+            s_13 = self.s_2
+            q_13 = self.q_2
+            if self.phi is None:
+                if self.alpha_2 is not None:
+                    self.phi = self.alpha - self.alpha_2
+                else:
+                    raise ValueError("For 3 lens system either phi or alpha_2 should be provided ")
+            L_3 = s_13*[np.cos(np.radians(self.phi))-L_1[0],
+                        np.sin(np.radians(self.phi))-L_1[1]] + [q_13]   # third lens with mass=1*q_13
+            geometry += L_3
+        return geometry
+
     def get_s(self, epoch):
         """
         Returns the value of separation :py:attr:`~s` at a given epoch or
