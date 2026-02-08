@@ -204,12 +204,7 @@ class MagnificationCurve(object):
                 self._set_point_lens_w_shear_magnification_objects()
         elif self.parameters.n_lenses == 2:
             if not self.parameters.is_external_mass_sheet:
-                self.# The code `_set_binary_lens_magnification_objects` appears to be defining a
-                # function or method in Python. The function is likely related to setting or
-                # calculating magnification values for binary lens systems in a scientific or
-                # computational context. The specifics of what the function does would depend on
-                # the implementation within the function body.
-                _set_binary_lens_magnification_objects()
+                self._set_binary_lens_magnification_objects()
             else:
                 self._set_binary_lens_w_shear_magnification_objects()
 
