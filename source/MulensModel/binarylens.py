@@ -24,6 +24,59 @@ class BinaryLens(object):
             'variety of classes with inheritance.')
 
 
+class _MultipleLensPointSourceMagnification(_AbstractMagnification):
+    """
+    Equations for calculating point-source--multiple-lens magnification.
+    This is a placeholder class to establish the basic methods and attributes
+    and over-write methods from
+    :py:class:`~MulensModel.pointlens.PointSourcePointLensMagnification`
+    that do not apply to binary lenses.
+
+    Arguments :
+        trajectory: :py:class:`~MulensModel.trajectory.Trajectory`
+            Including trajectory.parameters =
+            :py:class:`~MulensModel.modelparameters.ModelParameters`
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(trajectory=kwargs['trajectory'])
+        # This speeds-up code for np.float input.
+        self._q = float(self.trajectory.parameters.q)
+        # Can be manually changed to 'numpy'.
+        self._solver = 'Skowron_and_Gould_12'
+        self._vbm = VBMicrolensing.VBMicrolensing()
+
+        self._source_x = self.trajectory.x
+        self._source_y = self.trajectory.y
+        self._geometry = self.trajectory.parameters.get_geometry(
+            self.trajectory.times)
+        if len(self._geometry) == 1:
+            self._geometry = self._geometry * len(self._source_x)
+        self._zip_kwargs = None
+
+    def get_magnification(self):
+        """
+        Calculate the magnification
+
+        Parameters : None
+
+        Returns :
+            magnification: *np.ndarray*
+                The magnification for each point in :py:attr:`~trajectory`.
+        """
+        zip_args = [self._source_x, self._source_y, self._geometry]
+
+        out = []
+        if self._zip_kwargs is None:
+            for (x, y, geometry) in zip(*zip_args):
+                out.append(self._get_1_magnification(x, y, geometry))
+        else:
+            zip_args += [self._zip_kwargs]
+            for (x, y, geometry, kwargs_) in zip(*zip_args):
+                out.append(self._get_1_magnification(x, y, geometry, **kwargs_))
+        self._magnification = np.array(out)
+        return self._magnification
+        
 class _BinaryLensPointSourceMagnification(_AbstractMagnification):
     """
     Equations for calculating point-source--binary-lens magnification.
