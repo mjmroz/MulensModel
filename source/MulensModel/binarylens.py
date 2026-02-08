@@ -77,6 +77,7 @@ class _MultipleLensPointSourceMagnification(_AbstractMagnification):
         self._magnification = np.array(out)
         return self._magnification
 
+
 class _BinaryLensPointSourceMagnification(_AbstractMagnification):
     """
     Equations for calculating point-source--binary-lens magnification.
@@ -674,7 +675,8 @@ class BinaryLensVBBLMagnification(BinaryLensVBMMagnification):
     pass
 
 
-class MultipleLensVBMMagnification(_MultipleLensPointSourceMagnification, _LimbDarkeningForMagnification, _FiniteSource):
+class MultipleLensVBMMagnification(_MultipleLensPointSourceMagnification, _LimbDarkeningForMagnification,
+                                   _FiniteSource):
     """
     Multiple lens finite source magnification calculated using VBMicrolensing library that implements advanced contour
     integration algorithm presented by
@@ -705,7 +707,8 @@ class MultipleLensVBMMagnification(_MultipleLensPointSourceMagnification, _LimbD
             Requested relative accuracy of the result.
     """
 
-    def __init__(self, gamma=None, u_limb_darkening=None, accuracy=0.001, relative_accuracy=None, algorithm=None, **kwargs):
+    def __init__(self, gamma=None, u_limb_darkening=None, accuracy=0.001, relative_accuracy=None, algorithm=None,
+                 **kwargs):
         super().__init__(**kwargs)
         self._set_LD_coeffs(u_limb_darkening=u_limb_darkening, gamma=gamma)
         self._set_and_check_rho()
@@ -755,6 +758,7 @@ class MultipleLensVBMMagnification(_MultipleLensPointSourceMagnification, _LimbD
                 self._vbm.RelTol = self._relative_accuracy
         self._vbm.SetLensGeometry(geometry)
         return self._vbm_function(*args)
+
 
 class BinaryLensAdaptiveContouringMagnification(_BinaryLensPointSourceMagnification, _LimbDarkeningForMagnification,
                                                 _FiniteSource):
