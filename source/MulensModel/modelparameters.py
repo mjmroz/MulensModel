@@ -1936,7 +1936,7 @@ class ModelParameters(object):
         else:
             raise AttributeError('rho_2 is not a parameter of this model.')
 
-    def get_lens_geometry(self, epoch):
+    def get_lens_geometry(self, epoch=None):
         """
         Returns the geometry of the lens system at a given epoch or epochs (if orbital motion parameters are set).
         Needed for VBM.SetLensGeometry()
@@ -1955,18 +1955,18 @@ class ModelParameters(object):
                                 0.6,-.6,1.e-6]]   # Fourth lens: x4_1, x4_2, m4
         """
         if self.lens_geometry is not None:
-            if 'ds_dt' not in self.parameters.keys():
+            if epoch is None:
                 return [self.lens_geometry]
             else:
                 raise NotImplementedError(
-                    "Orbital motion parameters are not yet implemented for multiple lens geometry.")
+                    "Orbital motion is not yet implemented for multiple lens geometry.")
         else:
             self.lens_geometry = self.set_lens_geometry()
-            if 'ds_dt' not in self.parameters.keys():
+            if epoch is None:
                 return [self.lens_geometry]
             else:
                 raise NotImplementedError(
-                    "Orbital motion parameters are not yet implemented for multiple lens geometry.")
+                    "Orbital motion is not yet implemented for multiple lens geometry.")
 
     def set_lens_geometry(self):
         """
