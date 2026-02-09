@@ -171,6 +171,8 @@ class ModelParameters(object):
         if 's' in keys or 'q' in keys:
             self._n_lenses = 2
         # Both standard and Cassan08 parameterizations require s and q
+        if 's_31' in keys or 'q_31' in keys:
+            self._n_lenses = 3
 
     def _set_type(self, keys):
         """
