@@ -712,11 +712,12 @@ class ModelParameters(object):
         Here we check triple lens parameters for non-Cassan08 parameterization.
         """
         # s, q, and alpha must all be defined if s or q are defined
-        needed = ['s_21', 's_31', 'q_21', 'q_31','alpha'] 
+        needed = ['s_21', 's_31', 'q_21', 'q_31', 'alpha']
         needed_angels = ['alpha_31', 'psi']
         missing = set(needed) - set(keys)
         if missing:
-            raise KeyError('A triple lens model requires all of (s_21, s_31, q_21, q_31, alpha). missing: ' + str(missing))
+            raise KeyError('A triple lens model requires all of (s_21, s_31, q_21, q_31, alpha). missing: ' +
+                           str(missing))
         present_angles = set(needed_angels) & set(keys)
         if len(present_angles) != 1:
             raise KeyError('A triple lens model requires either alpha_31 or psi. Defined: ' + str(present_angles))
@@ -785,9 +786,8 @@ class ModelParameters(object):
 
         Also, check that all values are scalars.
         """
-        full_names = {
-            't_E': 'Einstein timescale', 't_star': 'Source crossing time',
-            'rho': 'Source size', 's': 'separation', 's_21': 'separation 2-1', 's_31': 'separation 3-1',}
+        full_names = {'t_E': 'Einstein timescale', 't_star': 'Source crossing time', 'rho': 'Source size',
+                      's': 'separation', 's_21': 'separation 2-1', 's_31': 'separation 3-1'}
 
         for (name, full) in full_names.items():
             if name in parameters.keys():
@@ -806,7 +806,7 @@ class ModelParameters(object):
                     msg = "Parameter {:} has to be in [0, 1] range, not {:}"
                     raise ValueError(msg.format(name, parameters[name]))
 
-        for name in ['q','q_21','q_31','q_source']:
+        for name in ['q', 'q_21', 'q_31', 'q_source']:
             if name in parameters.keys():
                 if parameters[name] <= 0.:
                     msg = "Parameter {:} has to be larger than 0, not {:}"
