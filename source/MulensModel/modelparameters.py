@@ -409,8 +409,14 @@ class ModelParameters(object):
             'pi_E_E': {'width': 9, 'precision': 5},
             't_0_par': {'width': 13, 'precision': 5, 'unit': 'HJD'},
             's': {'width': 9, 'precision': 5},
+            's_21': {'width': 9, 'precision': 5},
+            's_31': {'width': 9, 'precision': 5},
             'q': {'width': 12, 'precision': 8},
+            'q_21': {'width': 12, 'precision': 8},
+            'q_31': {'width': 12, 'precision': 8},
             'alpha': {'width': 11, 'precision': 5, 'unit': 'deg'},
+            'alpha_31': {'width': 11, 'precision': 5, 'unit': 'deg'},
+            'psi': {'width': 11, 'precision': 5, 'unit': 'deg'},
             'convergence_K': {'width': 12, 'precision': 8},
             'shear_G': {'width': 12, 'precision': 8},
             'ds_dt': {
@@ -465,7 +471,7 @@ class ModelParameters(object):
         """
         basic_keys = ['t_0', 'u_0', 't_E', 'rho', 't_star']
         additional_keys = [
-            'pi_E_N', 'pi_E_E', 't_0_par', 's', 'q', 'alpha',
+            'pi_E_N', 'pi_E_E', 't_0_par', 's', 's_21', 's_31', 'q', 'q_21', 'q_31', 'alpha', 'alpha_31', 'psi',
             'convergence_K', 'shear_G', 'ds_dt', 'dalpha_dt', 's_z',
             'ds_z_dt', 't_0_kep',
             'x_caustic_in', 'x_caustic_out', 't_caustic_in', 't_caustic_out',
@@ -1072,6 +1078,49 @@ class ModelParameters(object):
         self._update_sources('alpha', new_alpha)
 
     @property
+    def alpha_31(self):
+        """
+        *float*
+        The angle of the source trajectory relative to the  primary-third lens axis. Measured counterclockwise,
+        i.e., according to convention advocated by
+        `Skowron et al. 2011 (ApJ, 738, 87) <https://ui.adsabs.harvard.edu/abs/2011ApJ...738...87S/abstract>`_,
+        but shifted by 180 deg.
+        """
+        if self._type['Cassan08']:
+            self._get_standard_parameters_from_Cassan08()
+            return self._standard_parameters['alpha_31']
+
+        return self.parameters['alpha_31']
+
+    @alpha_31.setter
+    def alpha_31(self, new_alpha_31):
+        if self._type['Cassan08']:
+            raise ValueError('alpha_31 cannot be set for model using Cassan (2008) parameterization')
+
+        self.parameters['alpha_31'] = new_alpha_31
+        self._update_sources('alpha_31', new_alpha_31)
+
+    @property
+    def psi(self):
+        """
+        *float*
+        The angle between the primary-secondary axis and the primary-third lens axis.
+        """
+        if self._type['Cassan08']:
+            self._get_standard_parameters_from_Cassan08()
+            return self._standard_parameters['psi']
+
+        return self.parameters['psi']
+
+    @psi.setter
+    def psi(self, new_psi):
+        if self._type['Cassan08']:
+            raise ValueError('psi cannot be set for model using Cassan (2008) parameterization')
+
+        self.parameters['psi'] = new_psi
+        self._update_sources('psi', new_psi)
+
+    @property
     def q(self):
         """
         *float*
@@ -1086,6 +1135,38 @@ class ModelParameters(object):
             raise ValueError('mass ratio q has to be larger than 0')
         self.parameters['q'] = new_q
         self._update_sources('q', new_q)
+
+    @property
+    def q_21(self):
+        """
+        *float*
+
+        mass ratio of the #2 lens component to the #1 lens component, in triple lens system.
+        """
+        return self.parameters['q_21']
+
+    @q_21.setter
+    def q_21(self, new_q_21):
+        if new_q_21 <= 0.:
+            raise ValueError('mass ratio q_21 has to be larger than 0')
+        self.parameters['q_21'] = new_q_21
+        self._update_sources('q_21', new_q_21)
+
+    @property
+    def q_31(self):
+        """
+        *float*
+
+        mass ratio of the #3 lens component to the #1 lens component, in triple lens system.
+        """
+        return self.parameters['q_31']
+
+    @q_31.setter
+    def q_31(self, new_q_31):
+        if new_q_31 <= 0.:
+            raise ValueError('mass ratio q_31 has to be larger than 0')
+        self.parameters['q_31'] = new_q_31
+        self._update_sources('q_31', new_q_31)
 
     @property
     def convergence_K(self):
@@ -1144,6 +1225,42 @@ class ModelParameters(object):
 
         self.parameters['s'] = new_s
         self._update_sources('s', new_s)
+
+    @property
+    def s_21(self):
+        """
+        *float*
+
+        separation between lens #2 and lens #1 relative to Einstein ring size, in triple lens system.
+        """
+        return self.parameters['s_21']
+
+    @s_21.setter
+    def s_21(self, new_s_21):
+        if new_s_21 < 0.:
+            raise ValueError(
+                '#2 to #1 lens separation cannot be negative:', new_s_21)
+
+        self.parameters['s_21'] = new_s_21
+        self._update_sources('s_21', new_s_21)
+
+    @property
+    def s_31(self):
+        """
+        *float*
+
+        separation between lens #3 and lens #1 relative to Einstein ring size, in trple lens system.
+        """
+        return self.parameters['s_31']
+
+    @s_31.setter
+    def s_31(self, new_s_31):
+        if new_s_31 < 0.:
+            raise ValueError(
+                '#3 to #1 lens separation cannot be negative:', new_s_31)
+
+        self.parameters['s_31'] = new_s_31
+        self._update_sources('s_31', new_s_31)
 
     @property
     def pi_E_N(self):
@@ -1831,23 +1948,27 @@ class ModelParameters(object):
         """
         Cauculates the geometry of the lens system based on provided parameters. curently works only for 2 and 3 lenses
         """
-        if self._n_lenses > 1:
-            s_12 = self.s
-            q_12 = self.q
+        if self._n_lenses == 2:
+            s_21 = self.s
+            q_21 = self.q
 
-            L_1 = [-s_12*q_12/(1+q_12), 0., 1.]  # primary lens with mass=1 for Einstain units
-            L_2 = [s_12/(1+q_12), 0., q_12]  # secondary lens with mass=1*q_12
-            geometry = L_1 + L_2
         if self._n_lenses == 3:
-            s_13 = self.s_2
-            q_13 = self.q_2
-            if self.phi is None:
-                if self.alpha_2 is not None:
-                    self.phi = self.alpha - self.alpha_2
+            s_21 = self.s_21
+            q_21 = self.q_21
+
+        L_1 = [-s_21*q_21/(1+q_21), 0., 1.]  # primary lens with mass=1 for Einstain units
+        L_2 = [s_21/(1+q_21), 0., q_21]  # secondary lens with mass=1*q_21
+        geometry = L_1 + L_2
+        if self._n_lenses == 3:
+            s_31 = self.s_31
+            q_31 = self.q_31
+            if self.psi is None:
+                if self.alpha_31 is not None:
+                    self.psi = self.alpha - self.alpha_31
                 else:
-                    raise ValueError("For 3 lens system either phi or alpha_2 should be provided ")
-            L_3 = s_13*[np.cos(np.radians(self.phi))-L_1[0],
-                        np.sin(np.radians(self.phi))-L_1[1]] + [q_13]   # third lens with mass=1*q_13
+                    raise ValueError("For 3 lens system either psi or alpha_31 should be provided ")
+            L_3 = s_31*[np.cos(np.radians(self.psi))-L_1[0],
+                        np.sin(np.radians(self.psi))-L_1[1]] + [q_31]   # third lens with mass=1*q_31
             geometry += L_3
         return geometry
 
