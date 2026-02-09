@@ -705,6 +705,28 @@ class ModelParameters(object):
             if 'ds_dt' not in keys or 'dalpha_dt' not in keys:
                 raise KeyError('t_0_kep makes sense only when orbital motion is defined.')
 
+    def _check_valid_combination_1_source_triple_lens(self, keys):
+        """
+        Here we check triple lens parameters for non-Cassan08 parameterization.
+        """
+        # s, q, and alpha must all be defined if s or q are defined
+        needed = ['s_21', 's_31', 'q_21', 'q_31','alpha'] 
+        needed_angels = ['alpha_31', 'psi']
+        missing = set(needed) - set(keys)
+        if missing:
+            raise KeyError('A triple lens model requires all of (s_21, s_31, q_21, q_31, alpha). missing: ' + str(missing))
+        present_angles = set(needed_angels) & set(keys)
+        if len(present_angles) != 1:
+            raise KeyError('A triple lens model requires either alpha_31 or psi. Defined: ' + str(present_angles))
+
+        if ('ds_dt' in keys) or ('dalpha_dt' in keys):
+            raise IndentationError('Lens orbital motion of triple lens is not implemented yet.')
+
+        if self._type['circular keplerian motion'] or self._type['elliptical keplerian motion']:
+            raise IndentationError('Keplerian motion of triple lens is not implemented yet.')
+        if 't_0_kep' in keys:
+            raise KeyError('Orbital motion of triple lens is not implemented yet, hence t_0_kep cannot be defined.')
+
     def _check_valid_combination_1_source_xallarap(self, keys):
         """
         If xallarap parameters are defined,
@@ -763,7 +785,7 @@ class ModelParameters(object):
         """
         full_names = {
             't_E': 'Einstein timescale', 't_star': 'Source crossing time',
-            'rho': 'Source size', 's': 'separation'}
+            'rho': 'Source size', 's': 'separation', 's_21': 'separation 2-1', 's_31': 'separation 3-1',}
 
         for (name, full) in full_names.items():
             if name in parameters.keys():
@@ -782,7 +804,7 @@ class ModelParameters(object):
                     msg = "Parameter {:} has to be in [0, 1] range, not {:}"
                     raise ValueError(msg.format(name, parameters[name]))
 
-        for name in ['q']:
+        for name in ['q','q_21','q_31','q_source']:
             if name in parameters.keys():
                 if parameters[name] <= 0.:
                     msg = "Parameter {:} has to be larger than 0, not {:}"
