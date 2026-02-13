@@ -1,11 +1,7 @@
-import numpy as np
-from math import cos, sin
 import matplotlib.pyplot as plt
 import VBMicrolensing
 
-from MulensModel.utils import Utils, PlotUtils
-
-PlotUtils.apply_defaults()
+from MulensModel.utils import PlotUtils
 
 class CausticMultiple(object):
     """
@@ -27,9 +23,9 @@ class CausticMultiple(object):
 
         self.geometry = geometry
         self._n_lenses = len(geometry[0]) // 3
-        if self._n_lenses %1 != 0:
+        if self._n_lenses % 1 != 0:
             raise ValueError("Wrong geometry. Each lens should be specified by 3 numbers: x1, x2, mass.")
-        else:            
+        else:
             self._n_lenses = int(self._n_lenses)
         # Set place holder variable
         self._x = None
@@ -69,7 +65,6 @@ class CausticMultiple(object):
             for i in range(self._n_lenses):
                 plt.scatter(self.geometry[0][i*3], self.geometry[0][i*3+1], color='k', marker='x')
 
-
     def get_caustics(self, n_points=5000):
         """
         Returns x and y vectors corresponding to the outlines of the
@@ -100,10 +95,8 @@ class CausticMultiple(object):
 
     def _calculate(self, n_points=5000):
         """
-        Calculate the caustic structure for the given lens geometry using VBMicrolensing. 
+        Calculate the caustic structure for the given lens geometry using VBMicrolensing.
         """
-
-
         # Initialize VBMicrolensing() class object
         VBM = VBMicrolensing.VBMicrolensing()
         # Set relative accuracy
@@ -114,7 +107,7 @@ class CausticMultiple(object):
         self._critical_curve = self.CriticalCurve()
         caustics = VBM.Multicaustics(n_points)
         criticalcurves = VBM.Multicriticalcurves(n_points)
-        
+
         self._x = caustics[0]
         self._y = caustics[1]
         self._critical_curve.x = criticalcurves[0]
