@@ -7,6 +7,7 @@ from astropy.coordinates import SkyCoord
 from MulensModel.causticsbinary import CausticsBinary
 from MulensModel.causticspointwithshear import CausticsPointWithShear
 from MulensModel.causticsbinarywithshear import CausticsBinaryWithShear
+from MulensModel.causticsmultiple import CausticMultiple
 from MulensModel.coordinates import Coordinates
 from MulensModel.limbdarkeningcoeffs import LimbDarkeningCoeffs
 from MulensModel.magnificationcurve import MagnificationCurve
@@ -488,7 +489,7 @@ class Model(object):
             if geometry == self._caustics.geometry:
                 return
         else:
-            self._caustics = CausticsTriple(geometry=geometry)
+            self._caustics = CausticsMultiple(geometry=geometry)
 
     def plot_trajectory(
             self, times=None, t_range=None, t_start=None, t_stop=None,
