@@ -136,12 +136,17 @@ class ModelParameters(object):
 
     def _split_parameter_name(self, parameter):
         """
-        Split ABC_DEF_n into ABC_DEF (str) and n (int). For parameters like t_0 or rho, n is None.
+        Split ABC_DEF_n into ABC_DEF (str) and n (int). For parameters like t_0 or rho, n is None. 
+        Omitting parameter of lens system  
         """
+        parameters_lens = ['s','q','alpha']
         end = parameter.split('_')[-1]
         if end.isnumeric() and int(end) > 0:
             head = parameter[:-len(end)-1]
             end = int(end)
+            if head in parameters_lens:
+                head = f"{head}_{end}"   
+                end = None
         else:
             head = parameter
             end = None
@@ -239,7 +244,7 @@ class ModelParameters(object):
         # Make sure that there are no unwanted keys
         allowed_keys = set((
             't_0 u_0 t_E t_eff rho t_star pi_E_N pi_E_E t_0_par '
-            's q alpha dalpha_dt ds_dt s_z ds_z_dt a_s t_0_kep convergence_K shear_G '
+            's s_21 s_31 q q_21 q_31 alpha alpha_31 psi dalpha_dt ds_dt s_z ds_z_dt a_s t_0_kep convergence_K shear_G '
             't_0_1 t_0_2 u_0_1 u_0_2 rho_1 rho_2 t_star_1 t_star_2 '
             'x_caustic_in x_caustic_out t_caustic_in t_caustic_out '
             'xi_period xi_semimajor_axis xi_inclination xi_Omega_node '
