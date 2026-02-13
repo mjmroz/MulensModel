@@ -178,6 +178,7 @@ class ModelParameters(object):
         # Both standard and Cassan08 parameterizations require s and q
         if 's_31' in keys or 'q_31' in keys:
             self._n_lenses = 3
+            self.lens_geometry = None 
 
     def _set_type(self, keys):
         """
@@ -1959,19 +1960,20 @@ class ModelParameters(object):
                                 2,0.7,1.e-4,      # Third lens: x3_1, x3_2, m3
                                 0.6,-.6,1.e-6]]   # Fourth lens: x4_1, x4_2, m4
         """
+        if self._type['keplerian motion']:
+                raise NotImplementedError(
+                    "Orbital motion is not yet implemented for multiple lens geometry.")
         if self.lens_geometry is not None:
             if epoch is None:
                 return [self.lens_geometry]
-            else:
-                raise NotImplementedError(
-                    "Orbital motion is not yet implemented for multiple lens geometry.")
+            else: 
+                return [self.lens_geometry for _ in range(len(epoch))]
         else:
             self.lens_geometry = self.set_lens_geometry()
             if epoch is None:
                 return [self.lens_geometry]
             else:
-                raise NotImplementedError(
-                    "Orbital motion is not yet implemented for multiple lens geometry.")
+                return [self.lens_geometry for _ in range(len(epoch))]
 
     def set_lens_geometry(self):
         """
@@ -1996,8 +1998,8 @@ class ModelParameters(object):
                     self.psi = self.alpha - self.alpha_31
                 else:
                     raise ValueError("For 3 lens system either psi or alpha_31 should be provided ")
-            L_3 = s_31*[np.cos(np.radians(self.psi))-L_1[0],
-                        np.sin(np.radians(self.psi))-L_1[1]] + [q_31]   # third lens with mass=1*q_31
+            L_3 =[s_31*np.cos(np.radians(self.psi))-L_1[0],
+                  s_31*np.sin(np.radians(self.psi))-L_1[1],q_31]   # third lens with mass=1*q_31
             geometry += L_3
         return geometry
 

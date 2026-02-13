@@ -207,6 +207,8 @@ class MagnificationCurve(object):
                 self._set_binary_lens_magnification_objects()
             else:
                 self._set_binary_lens_w_shear_magnification_objects()
+        elif self.parameters.n_lenses > 2:
+            self._set_binary_lens_magnification_objects()
 
     def _setup_trajectory(self, selection):
         """Create a trajectory object for a given subset of the data specified by *selection*."""

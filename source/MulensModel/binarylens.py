@@ -41,14 +41,13 @@ class _MultipleLensPointSourceMagnification(_AbstractMagnification):
     def __init__(self, **kwargs):
         super().__init__(trajectory=kwargs['trajectory'])
         # This speeds-up code for np.float input.
-        self._q = float(self.trajectory.parameters.q)
         # Can be manually changed to 'numpy'.
         self._solver = 'Skowron_and_Gould_12'
         self._vbm = VBMicrolensing.VBMicrolensing()
 
         self._source_x = self.trajectory.x
         self._source_y = self.trajectory.y
-        self._geometry = self.trajectory.parameters.get_geometry(
+        self._geometry = self.trajectory.parameters.get_lens_geometry(
             self.trajectory.times)
         if len(self._geometry) == 1:
             self._geometry = self._geometry * len(self._source_x)
