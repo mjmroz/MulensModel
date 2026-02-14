@@ -1,7 +1,7 @@
+from warnings import warn
 import matplotlib.pyplot as plt
 import VBMicrolensing
 
-from MulensModel.utils import PlotUtils
 
 class CausticMultiple(object):
     """
@@ -32,7 +32,7 @@ class CausticMultiple(object):
         self._y = None
         self._critical_curve = None
 
-    def plot(self, n_points=5000, plot_lenses=False, **kwargs):
+    def plot(self, n_points=None, plot_lenses=False, **kwargs):
         """
         Plots the caustics using :py:func:`matplotlib.pyplot.scatter()`.
 
@@ -50,6 +50,10 @@ class CausticMultiple(object):
         (the other possible options are ``'scaled'`` or ``'square'``).
 
         """
+        if n_points is not None:
+            warn("n_points is not used for multiple lens geometry." +
+                 "The number of points is set by VBMicrolensing and cannot be changed.")
+
         if "linewidths" not in kwargs and "lw" not in kwargs:
             kwargs["lw"] = 0.
         if self._x is None or len(self._x) != n_points:
@@ -65,7 +69,7 @@ class CausticMultiple(object):
             for i in range(self._n_lenses):
                 plt.scatter(self.geometry[0][i*3], self.geometry[0][i*3+1], color='k', marker='x')
 
-    def get_caustics(self, n_points=5000):
+    def get_caustics(self, n_points=None):
         """
         Returns x and y vectors corresponding to the outlines of the
         caustics.  Origin is center of mass and larger mass is on the
@@ -80,6 +84,10 @@ class CausticMultiple(object):
                 Two lists of length *n_points* giving the *x*, *y*
                 coordinates of the caustic points.
         """
+        if n_points is not None:
+            warn("n_points is not used for multiple lens geometry." +
+                 "The number of points is set by VBMicrolensing and cannot be changed.")
+
         if self._x is None or self._y is None:
             self._calculate(n_points=n_points)
         return (self._x, self._y)
@@ -103,15 +111,17 @@ class CausticMultiple(object):
         VBM.RelTol = 1e-03
         # Set accuracy
         VBM.Tol = 1e-03
-
+        VBM.SetLensGeometry(self.geometry[0])
         self._critical_curve = self.CriticalCurve()
-        caustics = VBM.Multicaustics(n_points)
-        criticalcurves = VBM.Multicriticalcurves(n_points)
-
-        self._x = caustics[0]
-        self._y = caustics[1]
-        self._critical_curve.x = criticalcurves[0]
-        self._critical_curve.y = criticalcurves[1]
+        caustics = VBM.Multicaustics()
+        criticalcurves = VBM.Multicriticalcurves()
+        self._x = []
+        self._y = []
+        for i, one_caustic in enumerate(caustics):
+            self._x.extend(one_caustic[0])
+            self._y.extend(one_caustic[1])
+            self._critical_curve.x.extend(criticalcurves[i][0])
+            self._critical_curve.y.extend(criticalcurves[i][1])
 
     class CriticalCurve(object):
         """

@@ -136,16 +136,16 @@ class ModelParameters(object):
 
     def _split_parameter_name(self, parameter):
         """
-        Split ABC_DEF_n into ABC_DEF (str) and n (int). For parameters like t_0 or rho, n is None. 
-        Omitting parameter of lens system  
+        Split ABC_DEF_n into ABC_DEF (str) and n (int). For parameters like t_0 or rho, n is None.
+        Omitting parameter of lens system
         """
-        parameters_lens = ['s','q','alpha']
+        parameters_lens = ['s', 'q', 'alpha']
         end = parameter.split('_')[-1]
         if end.isnumeric() and int(end) > 0:
             head = parameter[:-len(end)-1]
             end = int(end)
             if head in parameters_lens:
-                head = f"{head}_{end}"   
+                head = f"{head}_{end}"
                 end = None
         else:
             head = parameter
@@ -1962,12 +1962,12 @@ class ModelParameters(object):
                                 0.6,-.6,1.e-6]]   # Fourth lens: x4_1, x4_2, m4
         """
         if self._type['keplerian motion']:
-                raise NotImplementedError(
-                    "Orbital motion is not yet implemented for multiple lens geometry.")
+            raise NotImplementedError(
+                "Orbital motion is not yet implemented for multiple lens geometry.")
         if self.lens_geometry is not None:
             if epoch is None:
                 return [self.lens_geometry]
-            else: 
+            else:
                 return [self.lens_geometry for _ in range(len(epoch))]
         else:
             self.lens_geometry = self.set_lens_geometry()
@@ -1994,13 +1994,13 @@ class ModelParameters(object):
         if self._n_lenses == 3:
             s_31 = self.s_31
             q_31 = self.q_31
-            if self.psi is None:
+            if 'psi' not in self.parameters.keys():
                 if self.alpha_31 is not None:
                     self.psi = self.alpha - self.alpha_31
                 else:
                     raise ValueError("For 3 lens system either psi or alpha_31 should be provided ")
-            L_3 =[s_31*np.cos(np.radians(self.psi))-L_1[0],
-                  s_31*np.sin(np.radians(self.psi))-L_1[1],q_31]   # third lens with mass=1*q_31
+            L_3 = [s_31 * np.cos(np.radians(self.psi))-L_1[0],
+                   s_31 * np.sin(np.radians(self.psi))-L_1[1], q_31]   # third lens with mass=1*q_31
             geometry += L_3
         return geometry
 

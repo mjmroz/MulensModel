@@ -96,7 +96,7 @@ class Trajectory(object):
             self._x = x
             self._y = y
         else:
-            self._set_parallax_and_coords(parallax, coords, satellite_skycoord,earth_coords)
+            self._set_parallax_and_coords(parallax, coords, satellite_skycoord, earth_coords)
             self._times = np.atleast_1d(times)
             self._get_xy()
 

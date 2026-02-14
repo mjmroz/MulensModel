@@ -240,7 +240,6 @@ class Model(object):
             times=times, t_range=t_range, t_start=t_start, t_stop=t_stop,
             dt=dt, n_epochs=n_epochs, gamma=gamma, source_flux=source_flux,
             blend_flux=blend_flux, return_times=False)
-
         return magnitudes
 
     def _parse_fluxes_for_get_lc(self, source_flux, source_flux_ratio,
@@ -446,7 +445,7 @@ class Model(object):
         elif self.n_lenses == 2:
             self._update_caustics_binary_lens(epoch)
         else:
-           self._update_caustics_triple_lens(epoch)
+            self._update_caustics_multiple_lens(epoch)
 
     def _update_caustics_single_lens(self):
         """
@@ -480,16 +479,16 @@ class Model(object):
                 q=self.parameters.q, s=s, shear_G=shear_G,
                 convergence_K=convergence_K)
 
-    def _update_caustics_triple_lens(self, epoch):
+    def _update_caustics_multiple_lens(self, epoch):
         """
-        Update self._caustics for triple lens.
+        Update self._caustics for multiple lens.
         """
-        geometry = self.get_lens_geometry(epoch=epoch)
+        geometry = self.parameters.get_lens_geometry(epoch=epoch)
         if self._caustics is not None:
             if geometry == self._caustics.geometry:
                 return
         else:
-            self._caustics = CausticsMultiple(geometry=geometry)
+            self._caustics = CausticMultiple(geometry=geometry)
 
     def plot_trajectory(
             self, times=None, t_range=None, t_start=None, t_stop=None,
