@@ -391,7 +391,7 @@ class MagnificationCurve(object):
         for method, selection in self.methods_indices.items():
             kwargs = self._setup_kwargs(method)
 
-            if kwargs != dict() and method.lower() not in ['vbm', 'vbbl', 'adaptive_contouring']:
+            if kwargs != dict() and method.lower() not in ['vbm', 'vbm_multiple', 'vbbl', 'adaptive_contouring']:
                 msg = 'Methods parameters passed for method {:} which does not accept any parameters'
                 raise ValueError(msg.format(method))
 
@@ -474,6 +474,10 @@ class MagnificationCurve(object):
             ``VBM``:
                 Uses VBMicrolensing (a Stokes theorem/contour integration code) by Valerio Bozza
                 (`Bozza 2010 MNRAS, 408, 2188 <https://ui.adsabs.harvard.edu/abs/2010MNRAS.408.2188B/abstract>`_).
+
+            ``VBM_MULTIPLE``:
+                As VBM but for multiple lenses. See
+                :py:func:`~MulensModel.binarylens.MultipleLensVBMMagnification()`
 
             ``VBBL``:
                 same as ``VBM`` for backward compatibility.
