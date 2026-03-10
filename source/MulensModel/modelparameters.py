@@ -714,7 +714,7 @@ class ModelParameters(object):
         if self._type['elliptical keplerian motion']:
             if ('s_z' not in keys) or ('ds_z_dt' not in keys):
                 raise KeyError('Ellipctical Keplerian motion requires all of s_z, ds_z_dt, dalpha_dt, and ds_dt')
-        if ('s_z' in keys) or ('ds_z_dt' in keys):
+        if ('sdalpha_z' in keys) or ('ds_z_dt' in keys):
             if ('ds_dt' not in keys) or ('dalpha_dt' not in keys):
                 raise KeyError('Full Keplerian motion (s_z or ds_z_dt) requires both ds_dt and dalpha_dt.' +
                                '\nNote that you can set either of them to 0.')
@@ -741,9 +741,17 @@ class ModelParameters(object):
         if len(present_angles) != 1:
             raise KeyError('A triple lens model requires either alpha_31 or psi. Defined: ' + str(present_angles))
 
-        if ('ds_dt' in keys) or ('dalpha_dt' in keys):
-            raise IndentationError('Lens orbital motion of triple lens is not implemented yet.')
-
+        if ('ds_dt' in keys):
+            raise ValueError('ds_21_dt and ds_31_dt should be used insted of ds_ds for triple lens modeling')
+        if ('ds_31_dt' in keys) or ('dalpha_31_dt' in keys) or ('dpsi_dt' in keys):
+            if len(set(['ds_31_dt', 'dalpha_31_dt', 'dpsi_dt']).intersection(keys)) != 2:
+                raise KeyError('Orbital motion of triple lens requires ds_31_dt, dalpha_31_dt or dpsi_dt. ')
+            if ('dalpha_31_dt' in keys) and ('dpsi_dt' in keys):
+                raise KeyError('Lens orbital motion requires either dalpha_31_dt or dpsi_dt, not both. ')
+        if ('ds_21_dt' in keys) or ('dalpha_21_dt' in keys):
+            if ('ds_21_dt' not in keys) or ('dalpha_21_dt' not in keys):
+                raise KeyError('Lens orbital motion requires ds_21_dt and dalpha_21_dt.' +
+                               '\nNote that you can set either of them to 0.')
         if self._type['circular keplerian motion'] or self._type['elliptical keplerian motion']:
             raise IndentationError('Keplerian motion of triple lens is not implemented yet.')
         if 't_0_kep' in keys:
