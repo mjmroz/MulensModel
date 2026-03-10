@@ -2004,7 +2004,7 @@ class ModelParameters(object):
             geometry += L_3
         return geometry
 
-    def get_s(self, epoch):
+    def get_s(self, epoch, s=None, ds_dt=None):
         """
         Returns the value of separation :py:attr:`~s` at a given epoch or
         epochs (if orbital motion parameters are set).
@@ -2012,15 +2012,25 @@ class ModelParameters(object):
         Arguments :
             epoch: *float*, *list*, *np.ndarray*
                 The time(s) at which to calculate :py:attr:`~s`.
-
+            s: *float* (optional)
+                If provided, it is used as the value of separation at time :py:attr:`~t_0_kep` instead of :py:attr:`~s`.
+            ds_dt: *float* (optional)
+                If provided, it is used as the value of change rate of separation instead of :py:attr:`~ds_dt`.
         Returns :
             separation: *float* or *np.ndarray*
                 Value(s) of separation for given epochs.
 
         """
-        if 'ds_dt' not in self.parameters.keys():
-            return self.s
-
+        if s is None:
+            s = self.s
+        if ds_dt is None:
+            if 'ds_dt' not in self.parameters.keys():
+                return self.s
+            else:
+                ds_dt = self.ds_dt
+        else:
+            if self._type['keplerian motion']:
+                raise ValueError('keplerian motion for multiple lenses is not yet implemented ')
         if isinstance(epoch, list):
             epoch = np.array(epoch)
 
@@ -2029,11 +2039,11 @@ class ModelParameters(object):
             sky_positions = self._lens_orbit.get_reference_plane_position(epoch)
             s_of_t = np.sqrt(np.sum(sky_positions**2, axis=0))
         else:
-            s_of_t = self.s + self.ds_dt * (epoch - self.t_0_kep) / 365.25
+            s_of_t = s + ds_dt * (epoch - self.t_0_kep) / 365.25
 
         return s_of_t
 
-    def get_alpha(self, epoch):
+    def get_alpha(self, epoch, angle=None, dangle_dt=None):
         """
         Returns the value of angle :py:attr:`~alpha` at a given epoch or
         epochs (if orbital motion parameters are set).
@@ -2041,26 +2051,37 @@ class ModelParameters(object):
         Arguments :
             epoch: *float*, *list*, *np.ndarray*
                 The time(s) at which to calculate :py:attr:`~alpha`.
+            angle: *float* (optional)
+                If provided, it is used as the value of angle at time :py:attr:`~t_0_kep` instead of :py:attr:`~alpha`.
+            dangle_dt: *float* (optional)
+                If provided, it is used as the value of change rate of angle instead of :py:attr:`~dalpha_dt`.
 
         Returns :
             angle: *float*
                 Value(s) of angle for given epochs in degrees
 
         """
-        if 'dalpha_dt' not in self.parameters.keys():
-            return self.alpha
-
+        if angle is None:
+            angle = self.alpha
+        if dangle_dt is None:
+            if 'dangle_dt' not in self.parameters.keys():
+                return self.alpha
+            else:
+                dangle_dt = self.dangle_dt
+        else:
+            if self._type['keplerian motion']:
+                raise ValueError('keplerian motion for multiple lenses is not yet implemented ')
         if isinstance(epoch, list):
             epoch = np.array(epoch)
 
         if self._type['keplerian motion']:
             self._set_lens_keplerian_orbit()
             sky_positions = self._lens_orbit.get_reference_plane_position(epoch)
-            alpha_of_t = self.alpha + np.arctan2(sky_positions[1, :], sky_positions[0, :]) * 180 / np.pi
+            angle_of_t = angle + np.arctan2(sky_positions[1, :], sky_positions[0, :]) * 180 / np.pi
         else:
-            alpha_of_t = self.alpha + self.dalpha_dt * (epoch - self.t_0_kep) / 365.25
+            angle_of_t = angle + dangle_dt * (epoch - self.t_0_kep) / 365.25
 
-        return alpha_of_t
+        return angle_of_t
 
     @property
     def gamma_parallel(self):
