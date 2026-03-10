@@ -246,8 +246,8 @@ class ModelParameters(object):
         # Make sure that there are no unwanted keys
         allowed_keys = set((
             't_0 u_0 t_E t_eff rho t_star pi_E_N pi_E_E t_0_par '
-            's s_21 s_31 q q_21 q_31 alpha alpha_31 psi dalpha_dt ds_dt s_z ds_z_dt a_s t_0_kep convergence_K shear_G '
-            't_0_1 t_0_2 u_0_1 u_0_2 rho_1 rho_2 t_star_1 t_star_2 '
+            's s_21 s_31 q q_21 q_31 alpha alpha_31 psi dalpha_dt dalpha_31_dt dpsi_dt ds_dt ds_21_dt ds_31_dt '
+            's_z ds_z_dt a_s t_0_kep convergence_K shear_G t_0_1 t_0_2 u_0_1 u_0_2 rho_1 rho_2 t_star_1 t_star_2 '
             'x_caustic_in x_caustic_out t_caustic_in t_caustic_out '
             'xi_period xi_semimajor_axis xi_inclination xi_Omega_node '
             'xi_argument_of_latitude_reference xi_eccentricity '
@@ -430,6 +430,18 @@ class ModelParameters(object):
             'shear_G': {'width': 12, 'precision': 8},
             'ds_dt': {
                 'width': 11, 'precision': 5, 'unit': '/yr', 'name': 'ds/dt'},
+            'ds_21_dt': {
+                'width': 11, 'precision': 5, 'unit': '/yr',
+                'name': 'ds_21/dt'},
+            'ds_31_dt': {
+                'width': 11, 'precision': 5, 'unit': '/yr',
+                'name': 'ds_31/dt'},
+            'dalpha_31_dt': {
+                'width': 18, 'precision': 5, 'unit': 'deg/yr',
+                'name': 'dalpha_31/dt'},
+            'dpsi_dt': {
+                'width': 18, 'precision': 5, 'unit': 'deg/yr',
+                'name': 'dpsi/dt'},
             'dalpha_dt': {
                 'width': 18, 'precision': 5, 'unit': 'deg/yr',
                 'name': 'dalpha/dt'},
@@ -1483,6 +1495,34 @@ class ModelParameters(object):
         self._update_sources('ds_dt', new_ds_dt)
 
     @property
+    def ds_21_dt(self):
+        """
+        *float*
+
+        Change rate of separation :py:attr:`~s_21` in 1/year.
+        """
+        return self.parameters['ds_21_dt']
+
+    @ds_21_dt.setter
+    def ds_21_dt(self, new_ds_21_dt):
+        self.parameters['ds_21_dt'] = new_ds_21_dt
+        self._update_sources('ds_21_dt', new_ds_21_dt)
+
+    @property
+    def ds_31_dt(self):
+        """
+        *float*
+
+        Change rate of separation :py:attr:`~s_31` in 1/year.
+        """
+        return self.parameters['ds_31_dt']
+
+    @ds_31_dt.setter
+    def ds_31_dt(self, new_ds_31_dt):
+        self.parameters['ds_31_dt'] = new_ds_31_dt
+        self._update_sources('ds_31_dt', new_ds_31_dt)
+
+    @property
     def dalpha_dt(self):
         """
         *float*
@@ -1495,6 +1535,34 @@ class ModelParameters(object):
     def dalpha_dt(self, new_dalpha_dt):
         self.parameters['dalpha_dt'] = new_dalpha_dt
         self._update_sources('dalpha_dt', new_dalpha_dt)
+
+    @property
+    def dalpha_31_dt(self):
+        """
+        *float*
+
+        Change rate of angle :py:attr:`~alpha_31` in deg/year.
+        """
+        return self.parameters['dalpha_31_dt']
+
+    @dalpha_31_dt.setter
+    def dalpha_31_dt(self, new_dalpha_31_dt):
+        self.parameters['dalpha_31_dt'] = new_dalpha_31_dt
+        self._update_sources('dalpha_31_dt', new_dalpha_31_dt)
+
+    @property
+    def dpsi_dt(self):
+        """
+        *float*
+
+        Change rate of angle :py:attr:`~psi` in deg/year.
+        """
+        return self.parameters['dpsi_dt']
+
+    @dalpha_31_dt.setter
+    def dalpha_31_dt(self, new_dpsi_dt):
+        self.parameters['dpsi_dt'] = new_dpsi_dt
+        self._update_sources('dpsi_dt', new_dpsi_dt)
 
     @property
     def s_z(self):
