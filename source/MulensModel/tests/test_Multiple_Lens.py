@@ -330,7 +330,87 @@ def test_2L_dynamic(n=1):
             y_critical_vbm, y_critical_vbm_multiple, decimal=3, err_msg='Critical y')
     return 'git'
 
+def test_3L_pseudo_dynamic():
+
+    s12 = 0.765
+    # Mass ratio lens 2
+    q2 = 0.00066
+    # impact parameter
+    u0 = 0.0060
+    # alpha
+    alpha = 3.212
+    # source radius in Einstein radii of the total mass.
+    rho = 0.0567
+    # einstein radius crossing time
+    tE = 50.13
+    # time of peak magnification
+    t0 = 0
+    # separation between the last two lenses in descending order of mass in units of total ang. Einstein radii
+    s23 = 1.5
+    # Mass ratio lens 3
+    q3 = 0.000001
+    # psi
+    psi = -1.5
+
+    num_points = 1000
+    tmin = -50
+    tmax = 50
+    t = np.linspace(t0 + tmin, t0 + tmax, num_points)
+    Parameters = {
+        's_21': s12,
+        'q_21': q2,
+        'u_0': u0,
+        'alpha': np.degrees(alpha),
+        'rho': rho,
+        't_E': tE,
+        't_0': t0,
+        's_31': s23,
+        'q_31': q3,
+        'psi': np.degrees(psi),
+        }
+    Parameters_dynamic= Parameters.copy()
+    Parameters_dynamic.update({
+        'ds_21_dt': 0.,
+        'ds_31_dt': 0.,
+        'dalpha_dt': 0.,
+        'dpsi_dt': 0.,
+        })
+
+    model = Model(parameters=Parameters)
+    model.set_magnification_methods([float(min(t)), 'vbm_multiple', float(max(t))])
+    model.default_magnification_method = 'vbm_multiple'
+    mag = model.get_magnification(t)
+    model.update_caustics()
+    caustics = model.caustics
+    x, y = caustics.get_caustics()
+    x_critical, y_critical = caustics._critical_curve.x,  caustics._critical_curve.y
+
+    model_dynamic = Model(parameters=Parameters_dynamic)
+
+    model_dynamic.set_magnification_methods(
+        [float(min(t)), 'vbm_multiple', float(max(t))])
+    model_dynamic.default_magnification_method = 'vbm_multiple'
+    mag_dynamic = model_dynamic.get_magnification(t)
+    model_dynamic.update_caustics()
+    caustics_dynamic = model_dynamic.caustics
+    x_dynamic, y_dynamic = caustics_dynamic.get_caustics()
+    x_critical_dynamic = caustics_dynamic._critical_curve.x
+    y_critical_dynamic = caustics_dynamic._critical_curve.y
+    
+    assert_almost_equal(mag, mag_dynamic,
+                        decimal=3, err_msg='Magnification')
+    assert_almost_equal(x, x_dynamic,
+                        decimal=3, err_msg='Caustics x')
+    assert_almost_equal(y, y_dynamic,
+                        decimal=3, err_msg='Caustics y')
+    assert_almost_equal(
+        x_critical, x_critical_dynamic, decimal=3, err_msg='Critical x')
+    assert_almost_equal(
+        y_critical, y_critical_dynamic, decimal=3, err_msg='Critical y')
+    return 'git'
+
 test_VBM_vs_MM()
 test_2L(n=10)
 test_2L_plus_2L()
 test_2L_dynamic()
+test_3L_pseudo_dynamic()
