@@ -2041,16 +2041,10 @@ class ModelParameters(object):
             raise NotImplementedError(
                 "Orbital motion is not yet implemented for multiple lens geometry.")
         if self.lens_geometry is not None:
-            if epoch is None:
-                return self.lens_geometry
-            else:
-                return self.lens_geometry
+            return self.lens_geometry
         else:
             self.lens_geometry = self.set_lens_geometry(epoch)
-            if epoch is None:
-                return self.lens_geometry
-            else:
-                return self.lens_geometry
+            return self.lens_geometry
 
     def set_lens_geometry(self, epoch=None):
         """
