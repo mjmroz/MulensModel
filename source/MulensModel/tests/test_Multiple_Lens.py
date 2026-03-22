@@ -387,8 +387,7 @@ def test_3L_pseudo_dynamic():
 
     model_dynamic = Model(parameters=Parameters_dynamic)
 
-    model_dynamic.set_magnification_methods(
-        [float(min(t)), 'vbm_multiple', float(max(t))])
+    model_dynamic.set_magnification_methods([float(min(t)), 'vbm_multiple', float(max(t))])
     model_dynamic.default_magnification_method = 'vbm_multiple'
     mag_dynamic = model_dynamic.get_magnification(t)
     model_dynamic.update_caustics()
@@ -396,21 +395,16 @@ def test_3L_pseudo_dynamic():
     x_dynamic, y_dynamic = caustics_dynamic.get_caustics()
     x_critical_dynamic = caustics_dynamic._critical_curve.x
     y_critical_dynamic = caustics_dynamic._critical_curve.y
-    
-    assert_almost_equal(mag, mag_dynamic,
-                        decimal=3, err_msg='Magnification')
-    assert_almost_equal(x, x_dynamic,
-                        decimal=3, err_msg='Caustics x')
-    assert_almost_equal(y, y_dynamic,
-                        decimal=3, err_msg='Caustics y')
-    assert_almost_equal(
-        x_critical, x_critical_dynamic, decimal=3, err_msg='Critical x')
-    assert_almost_equal(
-        y_critical, y_critical_dynamic, decimal=3, err_msg='Critical y')
+
+    assert_almost_equal(mag, mag_dynamic, decimal=3, err_msg='Magnification')
+    assert_almost_equal(x, x_dynamic, decimal=3, err_msg='Caustics x')
+    assert_almost_equal(y, y_dynamic, decimal=3, err_msg='Caustics y')
+    assert_almost_equal(x_critical, x_critical_dynamic, decimal=3, err_msg='Critical x')
+    assert_almost_equal(y_critical, y_critical_dynamic, decimal=3, err_msg='Critical y')
     return 'git'
 
-test_VBM_vs_MM()
-test_2L(n=10)
-test_2L_plus_2L()
-test_2L_dynamic()
+# test_VBM_vs_MM()
+# test_2L(n=10)
+# test_2L_plus_2L()
+# test_2L_dynamic()
 test_3L_pseudo_dynamic()

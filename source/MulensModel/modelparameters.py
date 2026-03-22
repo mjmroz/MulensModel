@@ -699,9 +699,10 @@ class ModelParameters(object):
 
         # If ds_dt is defined, dalpha_dt must be defined
         if ('ds_dt' in keys) or ('dalpha_dt' in keys):
-            if ('ds_dt' not in keys) or ('dalpha_dt' not in keys):
-                raise KeyError('Lens orbital motion requires both ds_dt and dalpha_dt.' +
-                               '\nNote that you can set either of them to 0.')
+            if 'ds_21_dt' not in keys:
+                if ('ds_dt' not in keys) or ('dalpha_dt' not in keys):
+                    raise KeyError('Lens orbital motion requires both ds_dt and dalpha_dt.' +
+                                '\nNote that you can set either of them to 0.')
         # If orbital motion is defined, then reference epoch has to be set.
             if 't_0' not in keys and 't_0_kep' not in keys:
                 raise KeyError('Orbital motion requires reference epoch, i.e., t_0 or t_0_kep')
@@ -748,9 +749,9 @@ class ModelParameters(object):
                 raise KeyError('Orbital motion of triple lens requires ds_31_dt, dalpha_31_dt or dpsi_dt. ')
             if ('dalpha_31_dt' in keys) and ('dpsi_dt' in keys):
                 raise KeyError('Lens orbital motion requires either dalpha_31_dt or dpsi_dt, not both. ')
-        if ('ds_21_dt' in keys) or ('dalpha_21_dt' in keys):
-            if ('ds_21_dt' not in keys) or ('dalpha_21_dt' not in keys):
-                raise KeyError('Lens orbital motion requires ds_21_dt and dalpha_21_dt.' +
+        if ('ds_21_dt' in keys) or ('dalpha_dt' in keys):
+            if ('ds_21_dt' not in keys) or ('dalpha_dt' not in keys):
+                raise KeyError('Lens orbital motion requires ds_21_dt and dalpha_dt.' +
                                '\nNote that you can set either of them to 0.')
         if self._type['circular keplerian motion'] or self._type['elliptical keplerian motion']:
             raise IndentationError('Keplerian motion of triple lens is not implemented yet.')
