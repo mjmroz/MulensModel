@@ -259,6 +259,78 @@ def test_2L_plus_2L():
     return 'git'
 
 
+def test_2L_dynamic(n=1):
+    """
+    test calculations of magnification  of 2L using vbm_multiple and vbm.
+    """
+    for i in range(n):
+        parameters = {
+            's': np.random.uniform(0.0001, 5.),
+            'q': np.random.uniform(0.0001, 1.),
+            'u_0': np.random.uniform(0.0001, 2.),
+            'alpha': np.random.uniform(0, 360),
+            'rho': np.random.uniform(0.0001, 3.),
+            't_E': np.random.uniform(20., 500.),
+            't_0': np.random.uniform(-100., 100.),
+            'ds_dt': np.random.uniform(-0.1, 0.1),
+            'dalpha_dt': np.random.uniform(-360, 360),
+        }
+
+        t0 = parameters['t_0']
+        num_points = 1000
+        tmin = -50
+        tmax = 50
+        t = np.linspace(t0 + tmin, t0 + tmax, num_points)
+
+        model_vbm = Model(parameters=parameters)
+        model_vbm.set_magnification_methods(
+            [float(min(t)), 'vbm', float(max(t))])
+        model_vbm.default_magnification_method = 'vbm'
+        mag_2L_vbm = model_vbm.get_magnification(t)
+        model_vbm.update_caustics()
+        caustics_vbm = model_vbm.caustics
+        x_vbm, y_vbm = caustics_vbm.get_caustics()
+        x_critical_vbm, y_critical_vbm = caustics_vbm._critical_curve.x,  caustics_vbm._critical_curve.y
+
+        model_vbm_multiple = Model(parameters=parameters)
+
+        model_vbm_multiple.set_magnification_methods(
+            [float(min(t)), 'vbm_multiple', float(max(t))])
+        model_vbm_multiple.default_magnification_method = 'vbm_multiple'
+        mag_2L_vbm_multiple = model_vbm_multiple.get_magnification(t)
+        model_vbm_multiple.update_caustics()
+        caustics_vbm_multiple = model_vbm_multiple.caustics
+        x_vbm_multiple, y_vbm_multiple = caustics_vbm_multiple.get_caustics()
+        x_critical_vbm_multiple = caustics_vbm_multiple._critical_curve.x
+        y_critical_vbm_multiple = caustics_vbm_multiple._critical_curve.y
+
+        plt.scatter(x_vbm, y_vbm, color='r', label='VBM caustics',
+                    s=4, alpha=0.1, marker='x')
+        plt.scatter(x_vbm_multiple, y_vbm_multiple, color='b', label='VBM multiple caustics', s=1, alpha=0.1,
+                    marker='o')
+        plt.scatter(x_critical_vbm, y_critical_vbm, color='r', label='VBM critical curve', s=4, alpha=0.1,
+                    marker='x')
+        plt.scatter(x_critical_vbm_multiple, y_critical_vbm_multiple, color='b',
+                    label='VBM multiple critical curve',  s=1, alpha=0.1, marker='o')
+        plt.legend()
+        plt.xlabel('x')
+        plt.ylabel('y')
+        plt.title('Caustics and critical curves for 2L')
+        plt.show()
+
+        assert_almost_equal(mag_2L_vbm, mag_2L_vbm_multiple,
+                            decimal=3, err_msg='Magnification')
+        assert_almost_equal(x_vbm, x_vbm_multiple,
+                            decimal=3, err_msg='Caustics x')
+        assert_almost_equal(y_vbm, y_vbm_multiple,
+                            decimal=3, err_msg='Caustics y')
+        assert_almost_equal(
+            x_critical_vbm, x_critical_vbm_multiple, decimal=3, err_msg='Critical x')
+        assert_almost_equal(
+            y_critical_vbm, y_critical_vbm_multiple, decimal=3, err_msg='Critical y')
+    return 'git'
+
 test_VBM_vs_MM()
 test_2L(n=10)
 test_2L_plus_2L()
+test_2L_dynamic()

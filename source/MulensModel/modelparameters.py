@@ -2042,13 +2042,13 @@ class ModelParameters(object):
                 "Orbital motion is not yet implemented for multiple lens geometry.")
         if self.lens_geometry is not None:
             if epoch is None:
-                return [self.lens_geometry]
+                return self.lens_geometry
             else:
                 return self.lens_geometry
         else:
             self.lens_geometry = self.set_lens_geometry(epoch)
             if epoch is None:
-                return [self.lens_geometry]
+                return self.lens_geometry
             else:
                 return self.lens_geometry
 
@@ -2056,48 +2056,75 @@ class ModelParameters(object):
         """
         Cauculates the geometry of the lens system. curently works only for 2 and 3 lenses
         """
-
         if self._n_lenses == 2:
-            s_21 = self.get(epoch)
-            q_21 = self.q
-            alpha = self.get_alpha(epoch)
-            s_31 = None
-            q_31 = None
-            psi = None
-        if epoch is None:
-            if self._n_lenses == 3:
-                s_21 = self.s_21
-                q_21 = self.q_21
-                alpha = self.alpha
-                if 'psi' not in self.parameters.keys():
-                    if self.alpha_31 is not None:
-                        self.psi = self.alpha - self.alpha_31
-                else:
-                    raise ValueError("For 3 lens system either psi or alpha_31 should be provided ")
-                psi = self.psi
-            geometry = self._set_one_lens_geometry(s_21, q_21, alpha, s_31, q_31, psi)
-        else:
-            geometry = []
-            if self._n_lenses == 3:
-                s_21 = self.get_s(epoch, s=self.s_21, ds_dt=self.ds_21_dt)
-                q_21 = self.q_21
-                alpha = self.get_alpha(epoch, angle=self.alpha, dangle_dt=self.dalpha_dt)
-                s_31 = self.get_s(epoch, s=self.s_31, ds_dt=self.ds_31_dt)
-                q_31 = self.q_31
-                if 'psi' not in self.parameters.keys():
-                    if self.alpha_31 is not None:
-                        self.psi = self.alpha - self.alpha_31
-                else:
-                    raise ValueError("For 3 lens system either psi or alpha_31 should be provided ")
-                psi = self.get_alpha(epoch, angle=self.psi, dangle_dt=self.dpsi_dt)
-                for i in range(len(epoch)):
-                    geometry.append(self._set_one_lens_geometry(s_21[i], q_21, alpha[i], s_31[i], q_31, psi[i]))
-            else:
-                for i in range(len(epoch)):
-                    geometry.append(self._set_one_lens_geometry(s_21[i], q_21, alpha[i], s_31, q_31, psi))
+            return self._set_lens_geometry_2L(epoch)
+        elif self._n_lenses == 3:
+            return self._set_lens_geometry_3L(epoch)
+
+    def _set_lens_geometry_2L(self, epoch):
+        """Calculates the geometry of the lens system for binary lenses.
+        """
+        s_21 = self.get_s(epoch)
+        q_21 = self.q
+        alpha = self.get_alpha(epoch)
+        s_31 = None
+        q_31 = None
+        psi = None
+        geometry = self._get_lens_geometry(epoch, s_21, q_21, alpha, s_31, q_31, psi)
+
         return geometry
 
-    def _set_one_lens_geometry(self, s_21, q_21, alpha, s_31, q_31, psi):
+    def _set_lens_geometry_3L(self, epoch):
+        """Calculates the geometry of the lens system for triple lenses. 
+        """
+        parameters_dynamic = self._get_dynamic_geometry_parameters()
+        s_21 = self.get_s(epoch, s=self.s_21, ds_dt=parameters_dynamic['ds_21_dt'])
+        q_21 = self.q_21
+        alpha = self.get_alpha(epoch, angle=self.alpha, dangle_dt=parameters_dynamic['dalpha_dt'])
+        s_31 = self.get_s(epoch, s=self.s_31, ds_dt=parameters_dynamic['ds_31_dt'])
+        q_31 = self.q_31
+        if 'psi' not in self.parameters.keys():
+            if self.alpha_31 is not None:
+                self.psi = self.alpha - self.alpha_31
+            else:
+                raise ValueError("For 3 lens system either psi or alpha_31 should be provided ")
+        psi = self.get_alpha(epoch, angle=self.psi, dangle_dt=parameters_dynamic['dpsi_dt'])
+        geometry = self._get_lens_geometry(epoch, s_21, q_21, alpha, s_31, q_31, psi)
+
+        return geometry
+
+    def _get_lens_geometry(self, epoch, s_21, q_21, alpha, s_31, q_31, psi):
+        """Calculates the geometry of the lens system for given parameters. 
+        """
+        def get_val(x, i):
+            if np.isscalar(x):
+                return x
+            if x is None:
+                return None
+            return x[i] 
+        dynamic = [isinstance(x, (list, tuple, np.ndarray)) for x in [s_21, alpha, s_31, psi]]
+        if any(dynamic):
+            geometry = []
+            for i in range(len(epoch)):
+                geometry.append(self._get_one_lens_geometry(get_val(s_21, i), q_21, get_val(s_31, i), q_31, get_val(psi, i)))
+        else:
+            geometry = [self._get_one_lens_geometry(s_21, q_21, s_31, q_31, psi)]
+        return geometry
+
+    def _get_dynamic_geometry_parameters(self):
+        """
+        Returns the parameters that are needed to calculate the geometry of the lens system at different epochs if needed 
+        """
+        keys = ['ds_dt', 'ds_21_dt','dalpha_dt', 'ds_31_dt', 'dalpha_31_dt', 'dpsi_dt']
+        parameters_dynamic = {}
+        for key in keys:
+            if key not in self.parameters.keys():
+                parameters_dynamic[key] = None
+            else:
+                parameters_dynamic[key] = self.parameters[key]
+        return parameters_dynamic
+
+    def _get_one_lens_geometry(self, s_21, q_21, s_31, q_31, psi):
         """
         Calculates the geometry of the lens system based on provided parameters. currently works only for 2 and 3 lenses
         """
@@ -2105,8 +2132,8 @@ class ModelParameters(object):
         L_2 = [s_21/(1+q_21), 0., q_21]  # secondary lens with mass=1*q_21
         geometry = L_1 + L_2
         if self._n_lenses == 3:
-            L_3 = [s_31 * np.cos(np.radians(self.psi))+L_1[0],
-                   s_31 * np.sin(np.radians(self.psi))+L_1[1], q_31]   # third lens with mass=1*q_31
+            L_3 = [s_31 * np.cos(np.radians(psi))+L_1[0],
+                   s_31 * np.sin(np.radians(psi))+L_1[1], q_31]   # third lens with mass=1*q_31
             geometry += L_3
         return geometry
 
@@ -2131,7 +2158,7 @@ class ModelParameters(object):
             s = self.s
         if ds_dt is None:
             if 'ds_dt' not in self.parameters.keys():
-                return self.s
+                return s
             else:
                 ds_dt = self.ds_dt
         else:
@@ -2170,10 +2197,10 @@ class ModelParameters(object):
         if angle is None:
             angle = self.alpha
         if dangle_dt is None:
-            if 'dangle_dt' not in self.parameters.keys():
-                return self.alpha
+            if 'dalpha_dt' not in self.parameters.keys():
+                return angle
             else:
-                dangle_dt = self.dangle_dt
+                dangle_dt = self.dalpha_dt
         else:
             if self._type['keplerian motion']:
                 raise ValueError('keplerian motion for multiple lenses is not yet implemented ')
