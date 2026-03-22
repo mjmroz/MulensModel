@@ -702,7 +702,7 @@ class ModelParameters(object):
             if 'ds_21_dt' not in keys:
                 if ('ds_dt' not in keys) or ('dalpha_dt' not in keys):
                     raise KeyError('Lens orbital motion requires both ds_dt and dalpha_dt.' +
-                                '\nNote that you can set either of them to 0.')
+                                   '\nNote that you can set either of them to 0.')
         # If orbital motion is defined, then reference epoch has to be set.
             if 't_0' not in keys and 't_0_kep' not in keys:
                 raise KeyError('Orbital motion requires reference epoch, i.e., t_0 or t_0_kep')
@@ -2070,7 +2070,7 @@ class ModelParameters(object):
         return geometry
 
     def _set_lens_geometry_3L(self, epoch):
-        """Calculates the geometry of the lens system for triple lenses. 
+        """Calculates the geometry of the lens system for triple lenses.
         """
         parameters_dynamic = self._get_dynamic_geometry_parameters()
         s_21 = self.get_s(epoch, s=self.s_21, ds_dt=parameters_dynamic['ds_21_dt'])
@@ -2089,28 +2089,30 @@ class ModelParameters(object):
         return geometry
 
     def _get_lens_geometry(self, epoch, s_21, q_21, alpha, s_31, q_31, psi):
-        """Calculates the geometry of the lens system for given parameters. 
+        """Calculates the geometry of the lens system for given parameters.
         """
         def get_val(x, i):
             if np.isscalar(x):
                 return x
             if x is None:
                 return None
-            return x[i] 
+            return x[i]
         dynamic = [isinstance(x, (list, tuple, np.ndarray)) for x in [s_21, alpha, s_31, psi]]
         if any(dynamic):
             geometry = []
             for i in range(len(epoch)):
-                geometry.append(self._get_one_lens_geometry(get_val(s_21, i), q_21, get_val(s_31, i), q_31, get_val(psi, i)))
+                geometry.append(self._get_one_lens_geometry(
+                    get_val(s_21, i), q_21, get_val(s_31, i), q_31, get_val(psi, i)))
         else:
             geometry = [self._get_one_lens_geometry(s_21, q_21, s_31, q_31, psi)]
         return geometry
 
     def _get_dynamic_geometry_parameters(self):
         """
-        Returns the parameters that are needed to calculate the geometry of the lens system at different epochs if needed 
+        Returns the parameters that are needed to calculate the geometry of the lens system
+        at different epochs if needed
         """
-        keys = ['ds_dt', 'ds_21_dt','dalpha_dt', 'ds_31_dt', 'dalpha_31_dt', 'dpsi_dt']
+        keys = ['ds_dt', 'ds_21_dt', 'dalpha_dt', 'ds_31_dt', 'dalpha_31_dt', 'dpsi_dt']
         parameters_dynamic = {}
         for key in keys:
             if key not in self.parameters.keys():
