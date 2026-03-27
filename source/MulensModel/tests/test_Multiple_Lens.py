@@ -2,6 +2,7 @@ from numpy.testing import assert_almost_equal
 import numpy as np
 import matplotlib.pyplot as plt
 from MulensModel.model import Model
+from MulensModel.modelparameters import ModelParameters
 import VBMicrolensing
 
 
@@ -467,9 +468,67 @@ def test_3L_dynamic():
     assert_almost_equal(x_critical, x_critical_dynamic, decimal=3, err_msg='Critical x')
     assert_almost_equal(y_critical, y_critical_dynamic, decimal=3, err_msg='Critical y')
     return 'git'
+
+
+def test_3L_coplenar():
+
+    s12 = 0.1
+    q2 = 0.00066
+    u0 = 0.0060
+    alpha = 3.212
+    rho = 0.0567
+    tE = 50.13
+    t0 = 0
+    s23 = 0.2
+    q3 = 0.000001
+    psi = 0
+
+    num_points = 1000
+    tmin = -700
+    tmax = 700
+    t = np.linspace(t0 + tmin, t0 + tmax, num_points)
+    Parameters = {
+        's_21': s12,
+        'q_21': q2,
+        'u_0': u0,
+        'alpha': 180,
+        'rho': rho,
+        't_E': tE,
+        't_0': t0,
+        's_31': s23,
+        'q_31': q3,
+        'psi': psi,
+        'ds_21_dt': 0.1,
+        'dalpha_dt': 100.,
+        'ds_21_z_dt': 0.1,
+        'z_23': 0.,
+        
+    }
+
+
+    parametes = ModelParameters(Parameters)
+    print(parametes._type)
+    parametes._set_lens_keplerian_orbit()
+    x2, y2= parametes._lens_orbit.get_reference_plane_position(t)
+    x3, y3 = parametes._coplanar_lenses_orbits[0].get_reference_plane_position(t)
+    
+    plt.scatter(x2, y2, c='red', label='Lens 2')
+    plt.scatter(x3, y3, c='blue', label='Lens 3')
+    plt.legend()
+    plt.show()
+    
+    model = Model(parameters=parametes)
+    model.set_magnification_methods([float(min(t)), 'vbm_multiple', float(max(t))])
+    model.default_magnification_method = 'vbm_multiple'
+    mag = model.get_magnification(t)
+    
+    
+    
 # test_VBM_vs_MM()
 # test_2L(n=10)
 # test_2L_plus_2L()
 # test_2L_dynamic()
 # test_3L_pseudo_dynamic()
-test_3L_dynamic()
+#test_3L_dynamic()
+
+test_3L_coplenar()

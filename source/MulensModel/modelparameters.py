@@ -139,7 +139,7 @@ class ModelParameters(object):
         Split ABC_DEF_n into ABC_DEF (str) and n (int). For parameters like t_0 or rho, n is None.
         Omitting parameter of lens system
         """
-        parameters_lens = ['s', 'q', 'alpha']
+        parameters_lens = ['s', 'q', 'alpha', 'z']
         end = parameter.split('_')[-1]
         if end.isnumeric() and int(end) > 0:
             head = parameter[:-len(end)-1]
@@ -186,7 +186,7 @@ class ModelParameters(object):
         sets self._type property, which indicates what type of a model we have
         """
         types = ['finite source', 'parallax', 'Cassan08', 'lens orbital motion', 'keplerian motion',
-                 'circular keplerian motion', 'elliptical keplerian motion', 'mass sheet', 'xallarap']
+                 'circular keplerian motion', 'coplanar planetary keplerina motion', 'elliptical keplerian motion', 'mass sheet', 'xallarap']
         out = {type_: False for type_ in types}
 
         temp = {
@@ -194,7 +194,8 @@ class ModelParameters(object):
             'parallax': 'pi_E_N pi_E_E',
             'Cassan08': 'x_caustic_in x_caustic_out t_caustic_in t_caustic_out',
             'lens orbital motion': 'dalpha_dt ds_dt',
-            'keplerian motion': 's_z ds_z_dt',
+            'keplerian motion': 's_z ds_z_dt s_21_z ds_21_z_dt',
+            'coplanar planetary keplerian motion': 'z_23',
             'elliptical keplerian motion': 'a_s',
             'mass sheet': 'convergence_K shear_G',
             'xallarap': ('xi_period xi_semimajor_axis xi_inclination xi_Omega_node xi_argument_of_latitude_reference '
@@ -247,7 +248,8 @@ class ModelParameters(object):
         allowed_keys = set((
             't_0 u_0 t_E t_eff rho t_star pi_E_N pi_E_E t_0_par '
             's s_21 s_31 q q_21 q_31 alpha alpha_31 psi dalpha_dt dalpha_31_dt dpsi_dt ds_dt ds_21_dt ds_31_dt '
-            's_z ds_z_dt a_s t_0_kep convergence_K shear_G t_0_1 t_0_2 u_0_1 u_0_2 rho_1 rho_2 t_star_1 t_star_2 '
+            's_z s_21_z ds_z_dt ds_21_z_dt a_s t_0_kep z_23 '
+            'convergence_K shear_G t_0_1 t_0_2 u_0_1 u_0_2 rho_1 rho_2 t_star_1 t_star_2 '
             'x_caustic_in x_caustic_out t_caustic_in t_caustic_out '
             'xi_period xi_semimajor_axis xi_inclination xi_Omega_node '
             'xi_argument_of_latitude_reference xi_eccentricity '
@@ -753,8 +755,12 @@ class ModelParameters(object):
             if ('ds_21_dt' not in keys) or ('dalpha_dt' not in keys):
                 raise KeyError('Lens orbital motion requires ds_21_dt and dalpha_dt.' +
                                '\nNote that you can set either of them to 0.')
-        if self._type['circular keplerian motion'] or self._type['elliptical keplerian motion']:
+        if self._type['elliptical keplerian motion']:
             raise IndentationError('Keplerian motion of triple lens is not implemented yet.')
+        if self._type['circular keplerian motion']:
+            if ('s_21_z' in keys) and ('ds_21_z_dt' in keys):
+                raise KeyError("Keplerian lens motion has only circular soltution - provide either s_21_z or " +
+                               "ds_21_z_dt,")
         if 't_0_kep' in keys:
             raise KeyError('Orbital motion of triple lens is not implemented yet, hence t_0_kep cannot be defined.')
 
@@ -918,12 +924,16 @@ class ModelParameters(object):
             self._standard_parameters = (
                 self._uniform_caustic.get_standard_parameters(**kwargs))
 
-    def _get_s_z_or_ds_z_dt(self, s_z=None, ds_z_dt=None):
+    def _get_s_z_or_ds_z_dt(self, s_z=None, ds_z_dt=None, ds_dt=None, s=None):
         """
         Calculates s_z or ds_z_dt when the other is given.
         """
-        conv_factor = -self.parameters['ds_dt'] * self.parameters['s']
-
+        if ds_dt is None:
+            ds_dt = self.parameters['ds_dt']
+        if s is None:
+            s = self.parameters['s']
+        
+        conv_factor = -ds_dt * s
         if s_z is not None:
             return conv_factor / s_z
         elif ds_z_dt is not None:
@@ -1161,7 +1171,8 @@ class ModelParameters(object):
         if self._type['Cassan08']:
             self._get_standard_parameters_from_Cassan08()
             return self._standard_parameters['psi']
-
+        if 'psi' not in self.parameters:
+            self.parameters['psi'] = self.parameters['alpha'] - self.parameters['alpha_31']
         return self.parameters['psi']
 
     @psi.setter
@@ -1592,6 +1603,24 @@ class ModelParameters(object):
         self._update_sources('s_z', new_s_z)
 
     @property
+    def s_21_z(self):
+        """
+        *float*
+
+        instantaneous position in the direction perpendicular to the plane
+        of the sky at time t_0_kep.
+        """
+        if 's_21_z' in self.parameters:
+            return self.parameters['s_21_z']
+        else:
+            return self._get_s_z_or_ds_z_dt(ds_z_dt=self.parameters['ds_21_z_dt'], s=self.parameters['s_21'], ds_dt=self.parameters['ds_21_dt'])
+
+    @s_21_z.setter
+    def s_21_z(self, new_s_21_z):
+        self.parameters['s_21_z'] = new_s_21_z
+        self._update_sources('s_21_z', new_s_21_z)
+
+    @property
     def ds_z_dt(self):
         """
         *float*
@@ -1609,6 +1638,24 @@ class ModelParameters(object):
     def ds_z_dt(self, new_ds_z_dt):
         self.parameters['ds_z_dt'] = new_ds_z_dt
         self._update_sources('ds_z_dt', new_ds_z_dt)
+
+    @property
+    def ds_21_z_dt(self):
+        """
+        *float*
+
+        Change rate of separation :py:attr:`~s_21_z` in 1/year.
+        """
+        if 'ds_21_z_dt' in self.parameters:
+            value = self.parameters['ds_21_z_dt']
+        else:
+            value = self._get_s_z_or_ds_z_dt(s_z=self.parameters['s_21_z'], ds_dt=self.parameters['ds_21_dt'], s=self.parameters['s_21'])
+        return value
+
+    @ds_21_z_dt.setter
+    def ds_21_z_dt(self, new_ds_21_z_dt):
+        self.parameters['ds_21_z_dt'] = new_ds_21_z_dt
+        self._update_sources('ds_21_z_dt', new_ds_21_z_dt)
 
     @property
     def a_s(self):
@@ -2038,9 +2085,6 @@ class ModelParameters(object):
                                 2,0.7,1.e-4,      # Third lens: x3_1, x3_2, m3
                                 0.6,-.6,1.e-6]]   # Fourth lens: x4_1, x4_2, m4
         """
-        if self._type['keplerian motion']:
-            raise NotImplementedError(
-                "Orbital motion is not yet implemented for multiple lens geometry.")
         if self.lens_geometry is not None:
             return self.lens_geometry
         else:
@@ -2076,14 +2120,14 @@ class ModelParameters(object):
         s_21 = self.get_s(epoch, s=self.s_21, ds_dt=parameters_dynamic['ds_21_dt'])
         q_21 = self.q_21
         alpha = self.get_alpha(epoch, angle=self.alpha, dangle_dt=parameters_dynamic['dalpha_dt'])
-        s_31 = self.get_s(epoch, s=self.s_31, ds_dt=parameters_dynamic['ds_31_dt'])
+        s_31 = self.get_s(epoch, s=self.s_31, ds_dt=parameters_dynamic['ds_31_dt'], lens=3)
         q_31 = self.q_31
         if 'psi' not in self.parameters.keys():
             if self.alpha_31 is not None:
                 self.psi = self.alpha - self.alpha_31
             else:
                 raise ValueError("For 3 lens system either psi or alpha_31 should be provided ")
-        psi = self.get_alpha(epoch, angle=self.psi, dangle_dt=parameters_dynamic['dpsi_dt'])
+        psi = self.get_alpha(epoch, angle=self.psi, dangle_dt=parameters_dynamic['dpsi_dt'], lens=3)
         geometry = self._get_lens_geometry(epoch, s_21, q_21, alpha, s_31, q_31, psi)
 
         return geometry
@@ -2134,7 +2178,7 @@ class ModelParameters(object):
             geometry += L_3
         return geometry
 
-    def get_s(self, epoch, s=None, ds_dt=None):
+    def get_s(self, epoch, s=None, ds_dt=None, lens=2):
         """
         Returns the value of separation :py:attr:`~s` at a given epoch or
         epochs (if orbital motion parameters are set).
@@ -2150,7 +2194,10 @@ class ModelParameters(object):
             separation: *float* or *np.ndarray*
                 Value(s) of separation for given epochs.
 
-        """
+        """        
+        if isinstance(epoch, list):
+            epoch = np.array(epoch)
+
         if s is None:
             s = self.s
         if ds_dt is None:
@@ -2158,22 +2205,21 @@ class ModelParameters(object):
                 return s
             else:
                 ds_dt = self.ds_dt
-        else:
-            if self._type['keplerian motion']:
-                raise ValueError('keplerian motion for multiple lenses is not yet implemented ')
-        if isinstance(epoch, list):
-            epoch = np.array(epoch)
-
+                
         if self._type['keplerian motion']:
             self._set_lens_keplerian_orbit()
-            sky_positions = self._lens_orbit.get_reference_plane_position(epoch)
-            s_of_t = np.sqrt(np.sum(sky_positions**2, axis=0))
+            if lens == 2: 
+                sky_positions = self._lens_orbit.get_reference_plane_position(epoch)
+                s_of_t = np.sqrt(np.sum(sky_positions**2, axis=0))
+            else:                    
+                sky_positions = self._coplanar_lenses_orbits[lens-3].get_reference_plane_position(epoch)
+                s_of_t = np.sqrt(np.sum(sky_positions**2, axis=0))
         else:
             s_of_t = s + ds_dt * (epoch - self.t_0_kep) / 365.25
 
         return s_of_t
 
-    def get_alpha(self, epoch, angle=None, dangle_dt=None):
+    def get_alpha(self, epoch, angle=None, dangle_dt=None, lens=2):
         """
         Returns the value of angle :py:attr:`~alpha` at a given epoch or
         epochs (if orbital motion parameters are set).
@@ -2191,6 +2237,8 @@ class ModelParameters(object):
                 Value(s) of angle for given epochs in degrees
 
         """
+        if isinstance(epoch, list):
+            epoch = np.array(epoch)
         if angle is None:
             angle = self.alpha
         if dangle_dt is None:
@@ -2198,16 +2246,15 @@ class ModelParameters(object):
                 return angle
             else:
                 dangle_dt = self.dalpha_dt
-        else:
-            if self._type['keplerian motion']:
-                raise ValueError('keplerian motion for multiple lenses is not yet implemented ')
-        if isinstance(epoch, list):
-            epoch = np.array(epoch)
 
         if self._type['keplerian motion']:
             self._set_lens_keplerian_orbit()
-            sky_positions = self._lens_orbit.get_reference_plane_position(epoch)
-            angle_of_t = angle + np.arctan2(sky_positions[1, :], sky_positions[0, :]) * 180 / np.pi
+            if lens ==2 :
+                sky_positions = self._lens_orbit.get_reference_plane_position(epoch)
+                angle_of_t = angle + np.arctan2(sky_positions[1, :], sky_positions[0, :]) * 180 / np.pi
+            else:
+                sky_positions = self._coplanar_lenses_orbits[lens-3].get_reference_plane_position(epoch)
+                angle_of_t = angle + np.arctan2(sky_positions[1, :], sky_positions[0, :]) * 180 / np.pi
         else:
             angle_of_t = angle + dangle_dt * (epoch - self.t_0_kep) / 365.25
 
@@ -2223,7 +2270,10 @@ class ModelParameters(object):
         It is parallel to the primary-secondary axis.
         Equals :py:attr:`~ds_dt`/:py:attr:`~s`. Cannot be set.
         """
-        return self.ds_dt / self.s
+        if 's' in self.parameters:
+            return self.ds_dt / self.s
+        else:
+            return  self.ds_21_dt / self.s_21
 
     @property
     def gamma_perp(self):
@@ -2248,8 +2298,10 @@ class ModelParameters(object):
         """
         if not self.is_keplerian():
             return None
-
-        return self.ds_z_dt / self.s
+        if 's' in self.parameters:
+            return self.ds_z_dt / self.s
+        else:
+            return self.ds_21_z_dt / self.s_21
 
     @property
     def gamma(self):
@@ -2267,15 +2319,26 @@ class ModelParameters(object):
         """
         Set parameters of the lens keplerian orbit i.e. self._lens_keplerian.
         """
-        gamma = np.array([self.gamma_parallel, self.gamma_perp, self.gamma_z])
-        if np.all(gamma == 0.):
-            raise ValueError('Keplerian orbital motion cannot have velocity = 0')
+        if 's' in self.parameters:
+            gamma = np.array([self.gamma_parallel, self.gamma_perp, self.gamma_z])
+            if np.all(gamma == 0.):
+                raise ValueError('Keplerian orbital motion cannot have velocity = 0')
 
-        position = np.array([self.s, 0, self.s_z])
-        new_input = [*list(position), *list(gamma)]
-        if self._type['elliptical keplerian motion']:
-            new_input.append(self.a_s)
+            position = np.array([self.s, 0, self.s_z])
+            new_input = [*list(position), *list(gamma)]
+            if self._type['elliptical keplerian motion']:
+                new_input.append(self.a_s)
+        
+        elif 's_21' in self.parameters:
+            gamma = np.array([self.gamma_parallel, self.gamma_perp, self.gamma_z])
+            if np.all(gamma == 0.):
+                raise ValueError('Keplerian orbital motion cannot have velocity = 0')
 
+            position = np.array([self.s_21, 0, self.s_21_z])
+            new_input = [*list(position), *list(gamma)]
+            if self._type['elliptical keplerian motion']:
+                new_input.append(self.a_s_21)
+        
         if new_input == self._lens_keplerian_last_input:
             return
 
@@ -2291,12 +2354,22 @@ class ModelParameters(object):
 #        print("ORBIT:")
 #        print(self._lens_keplerian)
         self._lens_orbit = Orbit(**self._lens_keplerian)
+        
+        if self._type['coplanar planetary keplerian motion']:
+            self._set_lens_keplerian_orbit_coplanar()
+            self._coplanar_lenses_orbits = []
+            for orbit in self._coplanar_lenses:
+                self._coplanar_lenses_orbits.append(Orbit(**orbit))
 
     def _set_lens_keplerian_orbit_circular(self, position, gamma):
         """
         Set self._lens_keplerian for a circular orbit.
         """
-        velocity = self.s * gamma  # This is in units of R_E = D_L * theta_E.
+        if 's' in self.parameters:
+            s = self.s
+        else:
+            s = self.s_21
+        velocity = s * gamma  # This is in units of R_E = D_L * theta_E.
         a = np.sqrt(np.sum(position**2))
         self._lens_keplerian['semimajor_axis'] = a
         self._lens_keplerian['period'] = 2 * np.pi * a / np.sqrt(np.sum(velocity**2)) * 365.25
@@ -2342,6 +2415,33 @@ class ModelParameters(object):
         E = np.arccos(cos_E)
         self._lens_keplerian['periapsis_epoch'] = self.t_0_kep - (E - eccentricity * np.sin(E)) / n
 
+    def _set_lens_keplerian_orbit_coplanar(self):
+        """
+        Set self._lens_keplerian for a additional coplanar planetary orbit.
+        """
+        if self.z_23 != 0.:
+            raise ValueError("Coplanar planetary orbit requires fixed value z_23 = 0.")
+        phi_0_21 = np.radians(self._lens_keplerian['argument_of_latitude_reference'])
+        inclination = np.radians(self._lens_keplerian['inclination'])
+        cos_inclination = np.cos(inclination)
+        
+        phi_0_21_projected = np.arctan2(cos_inclination*np.sin(phi_0_21), np.cos(phi_0_21))
+        phi_0_31_projected = phi_0_21_projected + self.psi  # ignoring center of mass shift, falid only for planetry systems
+        phi_0_21 = np.arctan2(np.sin(phi_0_21_projected) / cos_inclination, np.cos(phi_0_21_projected))
+
+        semimajor_axis_31 = self.s_31 / np.sqrt(np.cos(phi_0_31_projected)**2 + (np.sin(phi_0_31_projected) * cos_inclination)**2)
+
+        period_31 = self._lens_keplerian['period'] *  (semimajor_axis_31 / self._lens_keplerian['semimajor_axis'])**1.5
+
+        self._coplanar_lenses = [{
+            'semimajor_axis': semimajor_axis_31,
+            'period': period_31,
+            'argument_of_latitude_reference' : np.degrees(phi_0_31_projected),
+            'inclination': self._lens_keplerian['inclination'],
+            'Omega_node': self._lens_keplerian['Omega_node'],
+            'epoch_reference': self._lens_keplerian['epoch_reference']
+            }]
+
     @property
     def lens_semimajor_axis(self):
         """
@@ -2353,20 +2453,47 @@ class ModelParameters(object):
         return self._lens_keplerian['semimajor_axis']
 
     @property
-    def lens_period(self):
+    def lens_3_semimajor_axis(self):
         """
         *float*
 
+        Semi-major axis of the third lens orbit in units of theta_E.
+        """
+        self._set_lens_keplerian_orbit()
+        return self._coplanar_lenses[0]['semimajor_axis']
+
+    @property
+    def lens_period(self):
+        """
+        *float*
         Orbital period of the binary lens orbit in years.
         """
         self._set_lens_keplerian_orbit()
         return self._lens_keplerian['period'] / 365.25
 
     @property
+    def lens_3_period(self):
+        """
+        *float*
+
+        Orbital period of the third lens orbit in years.
+        """
+        self._set_lens_keplerian_orbit()
+        return self._coplanar_lenses[0]['period'] / 365.25
+
+    @property
     def lens_inclination(self):
         """
         *float*
 
+        Orbital period of the third lens orbit in years.
+        """
+        return self._coplanar_lenses['period'] / 365.25
+
+    @property
+    def lens_inclination(self):
+        """
+        *float*
         Inclination of the binary lens orbit in degrees.
         """
         self._set_lens_keplerian_orbit()
@@ -2391,6 +2518,25 @@ class ModelParameters(object):
         """
         self._set_lens_keplerian_orbit()
         return self._lens_keplerian['argument_of_latitude_reference']
+
+    @property
+    def lens_3_argument_of_latitude_reference(self):
+        """
+        *float*
+
+        Argument of latitude of the binary lens orbit in degrees.
+        """
+        self._set_lens_keplerian_orbit()
+        return self._coplanar_lenses[0]['argument_of_latitude_reference']
+    @property
+    def z_23(self):
+        """
+        *float*
+
+        Z-coordinate distance of the third lens from the plane of the binary lens.
+        Should be zero for a coplanar system.
+        """
+        return self.parameters['z_23']
 
     def is_finite_source(self):
         """
