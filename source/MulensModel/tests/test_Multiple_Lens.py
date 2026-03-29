@@ -4,11 +4,12 @@ import matplotlib.pyplot as plt
 from MulensModel.model import Model
 from MulensModel.modelparameters import ModelParameters
 import VBMicrolensing
+from MulensModel.orbits.orbit import Orbit
 
 
 def test_VBM_vs_MM():
     """
-    Test MulensModel.Model() for triple lens vs VBMicrolensing. The test is based on the example from VBMicrolensing:
+    Test MulensModel.Model() for triple lens vs V.BMicrolensing. The test is based on the example from VBMicrolensing:
     https://github.com/valboz/VBMicrolensing/blob/main/examples/python_examples/Triple_lens.ipynb
     """
     VBM = VBMicrolensing.VBMicrolensing()
@@ -473,6 +474,380 @@ def test_3L_dynamic():
 def test_3L_coplenar():
 
     s12 = 0.1
+    q2 = 0.0066
+    u0 = 0.060
+    alpha = 3.212
+    rho = 0.0567
+    tE = 50.13
+    t0 = 0.
+    s23 = 0.2
+    q3 = 0.000001
+    psi = 0
+
+    num_points = 1000
+    tmin = -50
+    tmax = 50
+    t = np.linspace(t0 + tmin, t0 + tmax, num_points)
+    parameters = {
+        's_21': s12,
+        'q_21': q2,
+        'u_0': u0,
+        'alpha': 180,
+        'rho': rho,
+        't_E': tE,
+        't_0': t0,
+        's_31': s23,
+        'q_31': q3,
+        'psi': psi,
+        'ds_21_dt': 0.1,
+        'dalpha_dt': 100.,
+        'ds_21_z_dt': 0.1,
+        'z_23': 0.,
+        'pi_E_E': 0,
+        'pi_E_N':0,
+        
+    }
+
+    
+    parameters = ModelParameters(parameters)
+
+    model = Model(parameters=parameters, coords="17:59:02.3 -29:04:15.2")
+    print(parameters._type)
+    parameters._set_lens_keplerian_orbit()
+    x2, y2= parameters._lens_orbit.get_reference_plane_position(t)
+    x3, y3 = parameters._coplanar_lenses_orbits[0].get_reference_plane_position(t)
+    
+    plt.scatter(x2, y2, c='red', label='Lens 2')
+    plt.scatter(x3, y3, c='blue', label='Lens 3')
+    plt.legend()
+    plt.show()
+    
+    model.set_magnification_methods([float(min(t)), 'vbm_multiple', float(max(t))])
+    model.default_magnification_method = 'vbm_multiple'
+    magtriple_MM = model.get_magnification(t)
+    model.update_caustics()
+    caustics_MM = model.caustics
+    x_MM, y_MM = caustics_MM.get_caustics()
+    x_critical_MM, y_critical_MM = caustics_MM._critical_curve.x, caustics_MM._critical_curve.y
+
+    VBM = VBMicrolensing.VBMicrolensing()
+    # Set relative accuracy
+    VBM.RelTol = 1e-04
+    VBM.Tol = 1e-04
+    VBM.SetObjectCoordinates("17:59:02.3 -29:04:15.2")
+    
+    
+    pr = [np.log(model.parameters.s_21), 
+          np.log(model.parameters.q_21),
+          model.parameters.u_0, 
+          np.radians(model.parameters.alpha),
+          np.log(model.parameters.rho),
+          np.log(model.parameters.t_E),
+          model.parameters.t_0,
+          np.log(model.parameters.s_31),
+          np.log(model.parameters.q_31),
+          np.radians(model.parameters.psi),
+          model.parameters.pi_E_N,
+          model.parameters.pi_E_E,
+          model.parameters.gamma_parallel/365.25,
+          -model.parameters.gamma_perp/365.25,
+          model.parameters.gamma_z/365.25,
+          ]
+          
+    magtriple_VBM = VBM.TripleLightCurveOrbital(pr, t)
+    caustics_VBM = VBM.Multicaustics()
+    criticalcurves_VBM = VBM.Multicriticalcurves()
+    
+    x_VBM = []
+    y_VBM = []
+    x_critical_VBM = []
+    y_critical_VBM = []
+    for i in range(len(caustics_VBM)):
+        x_VBM.extend(caustics_VBM[i][0])
+        y_VBM.extend(caustics_VBM[i][1])
+        x_critical_VBM.extend(criticalcurves_VBM[i][0])
+        y_critical_VBM.extend(criticalcurves_VBM[i][1])
+    
+    plt.plot(t, magtriple_VBM[0], 'r-', label='VBM magnification')
+    plt.plot(t, magtriple_MM, 'b-', label='MM magnification')
+    plt.legend()
+    plt.show()
+    x2, y2= model.parameters._lens_orbit.get_reference_plane_position(t)
+    x3, y3 = model.parameters._coplanar_lenses_orbits[0].get_reference_plane_position(t)
+    
+    # plt.scatter(x2, y2, c='red', label='Lens 2')
+    # plt.scatter(x3, y3, c='blue', label='Lens 3')
+    
+    plt.scatter(x_VBM, y_VBM, color='r', label='VBM caustics',
+                s=4, alpha=0.1, marker='x')
+    plt.scatter(x_MM, y_MM, color='b', label='MM caustics',
+                s=1, alpha=0.1, marker='o')
+    # plt.scatter(x_critical_VBM, y_critical_VBM, color='r',
+    #             label='VBM critical curve', s=4, alpha=0.1, marker='x')
+    # plt.scatter(x_critical_MM, y_critical_MM, color='b',
+    #             label='MM critical curve', s=1, alpha=0.1, marker='o')
+    
+    plt.legend()
+    plt.show()
+    
+    assert_almost_equal(
+        magtriple_MM, magtriple_VBM[0], decimal=3, err_msg='Magnification')
+def test_3L_coplenar_MM_vs_VBM(n=1):
+    """
+    test calculations of magnification  of 3L using vbm_multiple and vbm.
+    """
+    num_points = 1000
+    tmin = -365.25
+    tmax =  365.25
+
+    for i in range(n):
+        parameters = {
+            's_21': np.random.uniform(0.001, 0.01),
+            'q_21': np.random.uniform(0.001, 0.01),
+            'alpha': np.random.uniform(0, 360),
+            's_31': np.random.uniform(0.0001, 0.1),
+            'q_31': np.random.uniform(0.0001, 0.001),
+            'psi': np.random.uniform(0, 360),
+            'u_0': np.random.uniform(0.0001, 0.1),
+            'pi_E_N': 0,#np.random.uniform(-1, 1.),
+            'pi_E_E': 0,# np.random.uniform(-1, 1.),
+            'rho': np.random.uniform(0.001, 0.01),
+            't_E': np.random.uniform(20.,1000.),
+            't_0': np.random.uniform(-10., 10.),
+            
+            'dalpha_dt': np.random.uniform(-360, 360),
+            'ds_21_dt': np.random.uniform(-100, 100.),
+            'ds_21_z_dt':  np.random.uniform(-100, 100.),
+            'z_23': 0.,
+        }
+        t = np.linspace(parameters['t_0'] + tmin, parameters['t_0'] +  tmax, num_points)
+        print(parameters)
+
+        parameters = ModelParameters(parameters)
+        model = Model(parameters=parameters, coords="17:59:02.3 -29:04:15.2")
+        model.default_magnification_method = 'vbm_multiple'
+        magtriple_MM = model.get_magnification(t)
+        model.update_caustics()
+        caustics_MM = model.caustics
+        x_MM, y_MM = caustics_MM.get_caustics()
+        x_critical_MM, y_critical_MM = caustics_MM._critical_curve.x, caustics_MM._critical_curve.y
+
+        VBM = VBMicrolensing.VBMicrolensing()
+        # Set relative accuracy
+        VBM.RelTol = 1e-04
+        VBM.Tol = 1e-04
+        VBM.SetObjectCoordinates("17:59:02.3 -29:04:15.2")
+        
+        
+        pr = [np.log(parameters.s_21), 
+              np.log(parameters.q_21),
+              parameters.u_0, 
+              np.radians(parameters.alpha),
+              np.log(parameters.rho),
+              np.log(parameters.t_E),
+              parameters.t_0,
+              np.log(parameters.s_31),
+              np.log(parameters.q_31),
+              np.radians(parameters.psi),
+              parameters.pi_E_N,
+              parameters.pi_E_E,
+              parameters.gamma_parallel/365.25,
+              -parameters.gamma_perp/365.25,
+              parameters.gamma_z/365.25,
+              ]
+              
+        magtriple_VBM = VBM.TripleLightCurveOrbital(pr, t)
+        caustics_VBM = VBM.Multicaustics()
+        criticalcurves_VBM = VBM.Multicriticalcurves()
+
+        x_VBM = []
+        y_VBM = []
+        x_critical_VBM = []
+        y_critical_VBM = []
+        for i in range(len(caustics_VBM)):
+            x_VBM.extend(caustics_VBM[i][0])
+            y_VBM.extend(caustics_VBM[i][1])
+            x_critical_VBM.extend(criticalcurves_VBM[i][0])
+            y_critical_VBM.extend(criticalcurves_VBM[i][1])
+        
+        plt.plot(t, magtriple_VBM[0], 'r-', label='VBM magnification')
+        plt.plot(t, magtriple_MM, 'b-', label='MM magnification')
+        plt.legend()
+        plt.show()
+        x2, y2= parameters._lens_orbit.get_reference_plane_position(t)
+        x3, y3 = parameters._coplanar_lenses_orbits[0].get_reference_plane_position(t)
+        
+        # plt.scatter(x2, y2, c='red', label='Lens 2')
+        # plt.scatter(x3, y3, c='blue', label='Lens 3')
+        
+        plt.scatter(x_VBM, y_VBM, color='r', label='VBM caustics',
+                    s=4, alpha=0.1, marker='x')
+        plt.scatter(x_MM, y_MM, color='b', label='MM caustics',
+                    s=1, alpha=0.1, marker='o')
+        # plt.scatter(x_critical_VBM, y_critical_VBM, color='r',
+        #             label='VBM critical curve', s=4, alpha=0.1, marker='x')
+        # plt.scatter(x_critical_MM, y_critical_MM, color='b',
+        #             label='MM critical curve', s=1, alpha=0.1, marker='o')
+        
+        plt.legend()
+        plt.show()
+
+        assert_almost_equal(
+            magtriple_MM, magtriple_VBM[0], decimal=3, err_msg='Magnification')
+        # assert_almost_equal(x_MM, x_VBM, decimal=2, err_msg='Caustics x')
+        # assert_almost_equal(y_MM, y_VBM, decimal=2, err_msg='Caustics y')
+        # assert_almost_equal(x_critical_MM, x_critical_VBM,
+        #                     decimal=3, err_msg='Critical x')
+        # assert_almost_equal(y_critical_MM, y_critical_VBM,
+        #                     decimal=3, err_msg='Critical y')
+            
+def test_3L_MM_vs_VBM(n=1):
+        """
+        test calculations of magnification  of 3L using vbm_multiple and vbm.
+        """
+        num_points = 1000
+        tmin = -70
+        tmax = 70
+
+        for i in range(n):
+            parameters = {
+                's_21': np.random.uniform(0.0001, 5.),
+                'q_21': np.random.uniform(0.0001, 1.),
+                'alpha': np.random.uniform(0, 360),
+                's_31': np.random.uniform(0.0001, 5.),
+                'q_31': np.random.uniform(0.0001, 1.),
+                'psi': np.random.uniform(0, 360),
+                'u_0': np.random.uniform(0.0001, .5),
+                'pi_E_N': 0.,#np.random.uniform(-1, 1.),
+                'pi_E_E': 0., #np.random.uniform(-1, 1.),
+                'rho': np.random.uniform(0.0001, 3.),
+                't_E': np.random.uniform(20., 500.),
+                't_0': np.random.uniform(-100., 100.),
+                
+            
+            }
+            t = np.linspace(parameters['t_0'] + tmin, parameters['t_0'] +  tmax, num_points)
+
+
+            parameters = ModelParameters(parameters)
+            model = Model(parameters=parameters, coords="17:59:02.3 -29:04:15.2")
+            model.set_magnification_methods(
+                [float(min(t)), 'vbm_multiple', float(max(t))])
+            model.default_magnification_method = 'vbm_multiple'
+            magtriple_MM = model.get_magnification(t)
+            model.update_caustics()
+            caustics_MM = model.caustics
+            x_MM, y_MM = caustics_MM.get_caustics()
+            x_critical_MM, y_critical_MM = caustics_MM._critical_curve.x, caustics_MM._critical_curve.y
+
+            VBM = VBMicrolensing.VBMicrolensing()
+            # Set relative accuracy
+            VBM.RelTol = 1e-04
+            # Set accuracy
+            VBM.Tol = 1e-04
+            VBM.SetObjectCoordinates("17:59:02.3 -29:04:15.2")
+            
+            
+            pr = [np.log(parameters.s_21), 
+                  np.log(parameters.q_21),
+                  parameters.u_0, 
+                  np.radians(parameters.alpha),
+                  np.log(parameters.rho),
+                  np.log(parameters.t_E),
+                  parameters.t_0,
+                  np.log(parameters.s_31),
+                  np.log(parameters.q_31),
+                  np.radians(parameters.psi),
+                  parameters.pi_E_N,
+                  parameters.pi_E_E,
+                ]
+
+            magtriple_VBM = VBM.TripleLightCurve(pr, t)
+            caustics_VBM = VBM.Multicaustics()
+            criticalcurves_VBM = VBM.Multicriticalcurves()
+
+            x_VBM = []
+            y_VBM = []
+            x_critical_VBM = []
+            y_critical_VBM = []
+            for i in range(len(caustics_VBM)):
+                x_VBM.extend(caustics_VBM[i][0])
+                y_VBM.extend(caustics_VBM[i][1])
+                x_critical_VBM.extend(criticalcurves_VBM[i][0])
+                y_critical_VBM.extend(criticalcurves_VBM[i][1])
+            
+            plt.plot(t, magtriple_VBM[0], 'r-', label='VBM magnification')
+            plt.plot(t, magtriple_MM, 'b-', label='MM magnification')
+            plt.legend()
+            plt.show()
+
+
+            # plt.scatter(x_critical_VBM, y_critical_VBM, color='r',
+            #             label='VBM critical curve', s=4, alpha=0.1, marker='x')
+            # plt.scatter(x_critical_MM, y_critical_MM, color='b',
+            #             label='MM critical curve', s=1, alpha=0.1, marker='o')
+            
+            t+=500
+            magtriple_VBM = VBM.TripleLightCurve(pr, t+500)
+            caustics_VBM = VBM.Multicaustics()
+            criticalcurves_VBM = VBM.Multicriticalcurves()
+      
+            x_VBM2 = []
+            y_VBM2 = []
+            x_critical_VBM = []
+            y_critical_VBM = []
+            for i in range(len(caustics_VBM)):
+                x_VBM2.extend(caustics_VBM[i][0])
+                y_VBM2.extend(caustics_VBM[i][1])
+                x_critical_VBM.extend(criticalcurves_VBM[i][0])
+                y_critical_VBM.extend(criticalcurves_VBM[i][1])
+           
+            model = Model(parameters=parameters, coords="17:59:02.3 -29:04:15.2")
+            model.set_magnification_methods(
+                [float(min(t)), 'vbm_multiple', float(max(t))])
+            
+            model.default_magnification_method = 'vbm_multiple'
+            magtriple_MM = model.get_magnification(t+500)
+            model.update_caustics()
+            caustics_MM = model.caustics
+            x_MM2, y_MM2= caustics_MM.get_caustics()
+            
+            plt.scatter(x_VBM, y_VBM, color='r', label='VBM caustics',
+                        s=4, alpha=0.4, marker='x')
+            plt.scatter(x_MM, y_MM, color='b', label='MM caustics',
+                        s=1, alpha=0.4, marker='o')
+            plt.scatter(x_VBM2, y_VBM2, color='g', label='VBM caustics2',
+                        s=4, alpha=0.4, marker='x')
+            plt.scatter(x_MM2, y_MM2, color='b', label='MM caustics2',
+                        s=1, alpha=0.4, marker='o')
+            plt.legend()
+            plt.xlabel('x')
+            plt.ylabel('y')
+            plt.title('Caustics and critical curves for triple lens')
+            plt.show()
+
+            assert_almost_equal(
+                magtriple_MM, magtriple_VBM[0], decimal=3, err_msg='Magnification')
+            assert_almost_equal(x_MM, x_VBM, decimal=3, err_msg='Caustics x')
+            assert_almost_equal(y_MM, y_VBM, decimal=3, err_msg='Caustics y')
+            assert_almost_equal(x_critical_MM, x_critical_VBM,
+                                decimal=3, err_msg='Critical x')
+            assert_almost_equal(y_critical_MM, y_critical_VBM,
+                                decimal=3, err_msg='Critical y')
+                
+def test_adding_coplenar_orbit():
+    P = 30
+    a = 0.1
+    i = 0.
+    Omega = 0.
+    phi_0 = 0.
+        
+    num_points = 1000
+    tmin = 0
+    tmax = 10
+    t = np.linspace( tmin, tmax, num_points)
+        
+    s12 = 0.3
     q2 = 0.00066
     u0 = 0.0060
     alpha = 3.212
@@ -481,12 +856,9 @@ def test_3L_coplenar():
     t0 = 0
     s23 = 0.2
     q3 = 0.000001
-    psi = 0
+    psi = 90
 
-    num_points = 1000
-    tmin = -700
-    tmax = 700
-    t = np.linspace(t0 + tmin, t0 + tmax, num_points)
+    
     Parameters = {
         's_21': s12,
         'q_21': q2,
@@ -504,26 +876,94 @@ def test_3L_coplenar():
         'z_23': 0.,
         
     }
-
-
+    # It looks like there is a typo in the code. The word "parametes" should be corrected to
+    # "parameters". The rest of the code is commented out using the triple hash symbol
     parametes = ModelParameters(Parameters)
     print(parametes._type)
-    parametes._set_lens_keplerian_orbit()
+    parametes._lens_keplerian= dict(period=P,
+                                  semimajor_axis=a,
+                                  inclination=i,
+                                  Omega_node=Omega,
+                                  argument_of_latitude_reference=phi_0,                                 
+                                  epoch_reference = t0)
+    parametes._lens_orbit = Orbit(**parametes._lens_keplerian )
+        
+    parametes._set_lens_keplerian_orbit_coplanar()
+    parametes._coplanar_lenses_orbits = []
+    for orbit in parametes._coplanar_lenses:
+        parametes._coplanar_lenses_orbits.append(Orbit(**orbit))
+        
+        
+    num_points = 1000
+    tmin = -1000
+    tmax = 1000
+    t = np.linspace( tmin, tmax, num_points)
+           
+        
+    x2, y2= parametes._lens_orbit.get_reference_plane_position(t)
+    x3, y3 = parametes._coplanar_lenses_orbits[0].get_reference_plane_position(t)
+    
+    plt.scatter(x2, y2, c='red', label='Lens 2', s=0.1)
+    plt.scatter(x3, y3, c='blue', label='Lens 3',s=0.1)
+    plt.axhline(y=0, color='orange', linestyle='-')
+    plt.axvline(x=0, color='orange', linestyle='-')
+
+    plt.axis('equal')
+    
+
+    
+    num_points = 1000
+    tmin = 0
+    tmax = 10
+    t = np.linspace( tmin, tmax, num_points)
+        
+        
+        
+        
     x2, y2= parametes._lens_orbit.get_reference_plane_position(t)
     x3, y3 = parametes._coplanar_lenses_orbits[0].get_reference_plane_position(t)
     
     plt.scatter(x2, y2, c='red', label='Lens 2')
     plt.scatter(x3, y3, c='blue', label='Lens 3')
+    sky_positions = parametes._lens_orbit.get_reference_plane_position(t)
+    alpha = parametes.alpha + np.arctan2(sky_positions[1, :], sky_positions[0, :]) * 180 / np.pi
+    s_21 = np.sqrt(np.sum(sky_positions**2, axis=0))
+
+    sky_positions = parametes._coplanar_lenses_orbits[0].get_reference_plane_position(t)
+    psi = np.arctan2(sky_positions[1, :], sky_positions[0, :]) * 180 / np.pi
+    s_31 = np.sqrt(np.sum(sky_positions**2, axis=0))
+    geometry =np.array( parametes._get_lens_geometry(t, s_21, q2, alpha, s_31, q3, psi))
+    
+    
+        
+    plt.scatter(geometry[:,3], geometry[:,4], c='orange', marker='x',label='Lens 2', s=0.6)
+    plt.scatter(geometry[:,6],geometry[:,7], c='olive', marker='x',label='Lens 3',s=0.6)
+
+            
+        
+    num_points = 1000
+    tmin = -1000
+    tmax = 1000
+    t = np.linspace( tmin, tmax, num_points)
+           
+        
+    x2, y2= parametes._lens_orbit.get_reference_plane_position(t)
+    x3, y3 = parametes._coplanar_lenses_orbits[0].get_reference_plane_position(t)
+    
+    plt.scatter(x2, y2, c='red', label='Lens 2', s=0.1)
+    plt.scatter(x3, y3, c='blue', label='Lens 3',s=0.1)
+    plt.axhline(y=0, color='orange', linestyle='-')
+    plt.axvline(x=0, color='orange', linestyle='-')
+
+    plt.axis('equal')
+    
+
+   
     plt.legend()
     plt.show()
-    
-    model = Model(parameters=parametes)
-    model.set_magnification_methods([float(min(t)), 'vbm_multiple', float(max(t))])
-    model.default_magnification_method = 'vbm_multiple'
-    mag = model.get_magnification(t)
-    
-    
-    
+
+
+
 # test_VBM_vs_MM()
 # test_2L(n=10)
 # test_2L_plus_2L()
@@ -531,4 +971,7 @@ def test_3L_coplenar():
 # test_3L_pseudo_dynamic()
 #test_3L_dynamic()
 
-test_3L_coplenar()
+#test_3L_coplenar()
+#test_3L_coplenar_MM_vs_VBM(n=20)
+#test_3L_MM_vs_VBM(n=20)
+test_adding_coplenar_orbit()

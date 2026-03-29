@@ -2115,6 +2115,8 @@ class ModelParameters(object):
 
     def _set_lens_geometry_3L(self, epoch):
         """Calculates the geometry of the lens system for triple lenses.
+        s_21 and q_21 should be alwase cauculated before s_31 and q_31
+        XXXXXX                                                                  orbity za dużo razy sie licza
         """
         parameters_dynamic = self._get_dynamic_geometry_parameters()
         s_21 = self.get_s(epoch, s=self.s_21, ds_dt=parameters_dynamic['ds_21_dt'])
@@ -2182,7 +2184,7 @@ class ModelParameters(object):
         """
         Returns the value of separation :py:attr:`~s` at a given epoch or
         epochs (if orbital motion parameters are set).
-
+        XXXXXX                                                                  orbity za dużo razy sie licza
         Arguments :
             epoch: *float*, *list*, *np.ndarray*
                 The time(s) at which to calculate :py:attr:`~s`.
@@ -2194,7 +2196,7 @@ class ModelParameters(object):
             separation: *float* or *np.ndarray*
                 Value(s) of separation for given epochs.
 
-        """        
+        """
         if isinstance(epoch, list):
             epoch = np.array(epoch)
 
@@ -2205,13 +2207,16 @@ class ModelParameters(object):
                 return s
             else:
                 ds_dt = self.ds_dt
-                
+
         if self._type['keplerian motion']:
             self._set_lens_keplerian_orbit()
             if lens == 2: 
                 sky_positions = self._lens_orbit.get_reference_plane_position(epoch)
                 s_of_t = np.sqrt(np.sum(sky_positions**2, axis=0))
-            else:                    
+                self._sky_positions_2 = sky_positions
+            else:
+                if not hasattr(self, '_sky_positions_2'):
+                    self._sky_positions_2 = self._lens_orbit.get_reference_plane_position(epoch)
                 sky_positions = self._coplanar_lenses_orbits[lens-3].get_reference_plane_position(epoch)
                 s_of_t = np.sqrt(np.sum(sky_positions**2, axis=0))
         else:
@@ -2231,7 +2236,6 @@ class ModelParameters(object):
                 If provided, it is used as the value of angle at time :py:attr:`~t_0_kep` instead of :py:attr:`~alpha`.
             dangle_dt: *float* (optional)
                 If provided, it is used as the value of change rate of angle instead of :py:attr:`~dalpha_dt`.
-
         Returns :
             angle: *float*
                 Value(s) of angle for given epochs in degrees
@@ -2252,9 +2256,15 @@ class ModelParameters(object):
             if lens ==2 :
                 sky_positions = self._lens_orbit.get_reference_plane_position(epoch)
                 angle_of_t = angle + np.arctan2(sky_positions[1, :], sky_positions[0, :]) * 180 / np.pi
+                self._sky_positions_2 = sky_positions
             else:
-                sky_positions = self._coplanar_lenses_orbits[lens-3].get_reference_plane_position(epoch)
-                angle_of_t = angle + np.arctan2(sky_positions[1, :], sky_positions[0, :]) * 180 / np.pi
+                if not hasattr(self, '_sky_positions_2'):
+                    self._sky_positions_2 = self._lens_orbit.get_reference_plane_position(epoch)
+                sky_positions_2 = self._sky_positions_2
+
+                sky_positions_3 = self._coplanar_lenses_orbits[lens-3].get_reference_plane_position(epoch)
+
+                angle_of_t = angle - np.arctan2(sky_positions_2[1, :], sky_positions_2[0, :]) * 180 / np.pi +  np.arctan2(sky_positions_3[1, :], sky_positions_3[0, :]) * 180 / np.pi
         else:
             angle_of_t = angle + dangle_dt * (epoch - self.t_0_kep) / 365.25
 
@@ -2426,9 +2436,9 @@ class ModelParameters(object):
         cos_inclination = np.cos(inclination)
         
         phi_0_21_projected = np.arctan2(cos_inclination*np.sin(phi_0_21), np.cos(phi_0_21))
-        phi_0_31_projected = phi_0_21_projected + self.psi  # ignoring center of mass shift, falid only for planetry systems
-        phi_0_21 = np.arctan2(np.sin(phi_0_21_projected) / cos_inclination, np.cos(phi_0_21_projected))
-
+        phi_0_31_projected = phi_0_21_projected + np.radians(self.psi)  # ignoring center of mass shift, falid only for planetry systems
+        phi_0_31 = np.arctan2(np.sin(phi_0_31_projected) / cos_inclination, np.cos(phi_0_31_projected))
+        print(f'phi_0_21_projected: {np.degrees(phi_0_21_projected)}, phi_0_21: {np.degrees(phi_0_21)},\n phi_0_31_projected: {np.degrees(phi_0_31_projected)}, phi_0_31: {np.degrees(phi_0_31)}')
         semimajor_axis_31 = self.s_31 / np.sqrt(np.cos(phi_0_31_projected)**2 + (np.sin(phi_0_31_projected) * cos_inclination)**2)
 
         period_31 = self._lens_keplerian['period'] *  (semimajor_axis_31 / self._lens_keplerian['semimajor_axis'])**1.5
@@ -2436,11 +2446,12 @@ class ModelParameters(object):
         self._coplanar_lenses = [{
             'semimajor_axis': semimajor_axis_31,
             'period': period_31,
-            'argument_of_latitude_reference' : np.degrees(phi_0_31_projected),
+            'argument_of_latitude_reference' : np.degrees(phi_0_31),
             'inclination': self._lens_keplerian['inclination'],
             'Omega_node': self._lens_keplerian['Omega_node'],
             'epoch_reference': self._lens_keplerian['epoch_reference']
             }]
+        print(self._coplanar_lenses[0])
 
     @property
     def lens_semimajor_axis(self):
