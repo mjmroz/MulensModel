@@ -546,7 +546,6 @@ class MagnificationCurve(object):
 
         return self._get_magnification_universal()
 
-
     def get_triple_lens_magnification(self):
         """
         Calculate the triple lens magnification.
