@@ -14,7 +14,7 @@ jax.config.update("jax_enable_x64", True)  # stabilises the polynomial solver
 
 class _TripleLensPointSourceMagnification(_AbstractMagnification):
     """
-    Equations for calculating point-source--multiple-lens magnification.
+    Equations for calculating point-source--triple-lens magnification.
     This is a placeholder class to establish the basic methods and attributes
     and over-write methods from
     :py:class:`~MulensModel.pointlens.PointSourcePointLensMagnification`
@@ -33,19 +33,8 @@ class _TripleLensPointSourceMagnification(_AbstractMagnification):
         
         self._source_x = self.trajectory.x
         self._source_y = self.trajectory.y
-        self._separations_21 = self.trajectory.parameters.get_s(self.trajectory.times)
         self._geometry = self.trajectory.parameters.get_lens_geometry(self.trajectory.times)
-        self.parameters_all = []
-
-        if isinstance(self._separations_21, (int, float)):
-            self._separations_21 = [self._separations_21]
-        for i, geometry in enumerate(self._geometry):
-            parameters = {'s': jnp.float64(self._separations_21[i]), 'q_21': jnp.float64(self.trajectory.parameters.q_21),
-                        'q_31': jnp.float64(self.trajectory.parameters.q_31),# separation between center of masss for m1/m2 and m3
-                        'r_3': jnp.sqrt(geometry[6]**2. + geometry[7]**2.), # separation between center of masss for m1/m2 and m3
-                        'psi': jnp.deg2rad(self.trajectory.parameters.psi)} # angle of 3rd lens axis in radians
-            self.parameters_all.append(parameters)
-
+        self._psi = self.trajectory.parameters.psi
         self._zip_kwargs = None
 
     def get_magnification(self):
@@ -58,23 +47,23 @@ class _TripleLensPointSourceMagnification(_AbstractMagnification):
             magnification: *np.ndarray*
                 The magnification for each point in :py:attr:`~trajectory`.
         """
-        if len(self.parameters_all) == 1:
+        if len(self._geometry) == 1:
             if self._zip_kwargs is None:
-                self._magnification = np.array(self._get_all_magnification(self._source_x, self._source_y, self._parameters_all[0]))
+                self._magnification = np.array(self._get_all_magnification(self._source_x, self._source_y, self._geometry))
             else:
-                self._magnification = np.array(self._get_all_magnification(self._source_x, self._source_y, self._parameters_all[0], **self._zip_kwargs))
+                self._magnification = np.array(self._get_all_magnification(self._source_x, self._source_y, self._geometry, **self._zip_kwargs))
         else:
-        zip_args = [self._source_x, self._source_y, self._parameters_all]
+            zip_args = [self._source_x, self._source_y, self._geometry]
 
             out = []
             if self._zip_kwargs is None:
-                for (x, y, parameters) in zip(*zip_args):
-                    out.append(self._get_1_magnification(x, y, parameters))
+                for (x, y, geometry) in zip(*zip_args):
+                    out.append(self._get_1_magnification(x, y, geometry))
             else:
                 zip_args += [self._zip_kwargs]
-                for (x, y, parameters, kwargs_) in zip(*zip_args):
+                for (x, y, geometry, kwargs_) in zip(*zip_args):
                     out.append(self._get_1_magnification(
-                        x, y, parameters, **kwargs_))
+                        x, y, geometry, **kwargs_))
             self._magnification = np.array(out)
         return self._magnification
 
@@ -87,11 +76,11 @@ class TripleLensPointSourceMicrojaxxMagnification(_TripleLensPointSourceMagnific
             Including trajectory.parameters =
             :py:class:`~MulensModel.modelparameters.ModelParameters`
     """
-
-    def _get_1_magnification(self, x, y, parameters):
+    def _get_1_magnification(self, x, y, geometry, **kwargs):
         """
         Calculate 1 magnification using VBM.
         """
+        parameters = self._get_lens_parameters(geometry)
         return self._get_1_magnification_point_source(x, y, parameters)
 
     def _get_1_magnification_point_source(self, x, y, parameters):
@@ -102,8 +91,9 @@ class TripleLensPointSourceMicrojaxxMagnification(_TripleLensPointSourceMagnific
         w_points = self._get_w_points(x, y, parameters)
         return mag_point_source(w_points, n_lenses=3, **parameters)[0]
 
-    def _get_all_magnification(self, x, y, parameters):
+    def _get_all_magnification(self, x, y, geometry, **kwargs):
         """Calculate magnification for all points using microjaxx."""
+        parameters = self._get_lens_parameters(geometry)
         w_points = self._get_w_points(x, y, parameters)
         return mag_point_source(w_points, n_lenses=3, **parameters)
 
@@ -117,6 +107,14 @@ class TripleLensPointSourceMicrojaxxMagnification(_TripleLensPointSourceMagnific
         x_cm = 0.5 * parameters['s'] * (1. - parameters['q_21']) / (1. + parameters['q_21'])
         return jnp.array(x + x_cm + 1j * y, dtype=complex)
 
+    def _get_lens_parameters(self, geometry):
+        s = jnp.sqrt((geometry[0] - geometry[3])**2)
+        parameters = {'s': s, 'q_21': jnp.float64(self.trajectory.parameters.q_21),
+                                    'q_31': jnp.float64(self.trajectory.parameters.q_31), # separation between center of masss for m1/m2 and m3
+                                    'r_3': jnp.sqrt(geometry[6]**2. + geometry[7]**2.), # separation between center of masss for m1/m2 and m3
+                                    'psi': jnp.deg2rad(self._psi)} # angle of 3rd lens axis in radians
+
+        return parameters
 
 class TripleLensMicrojaxxInverseRayMagnification(_TripleLensPointSourceMagnification, _LimbDarkeningForMagnification,
                                    _FiniteSource):
@@ -154,17 +152,19 @@ class TripleLensMicrojaxxInverseRayMagnification(_TripleLensPointSourceMagnifica
         if self._u_limb_darkening is None:
             self._u_limb_darkening = 0.0
 
-    def _get_1_magnification(self, x, y, parameters, **kwargs):
+    def _get_1_magnification(self, x, y, geometry, **kwargs):
         """ 
         Calculate 1 magnification using microjaxx inverse ray shooting method. 
         """
+        parameters = self._get_lens_parameters(geometry)
         w_points = self._get_w_points(x, y, parameters)
         parameters['u1'] = self._u_limb_darkening
 
         return mag_triple(w_points, **parameters, **self._zip_kwargs)[0]
 
-    def _get_all_magnification(self, x, y, parameters, **kwargs):
+    def _get_all_magnification(self, x, y, geometry, **kwargs):
         """Calculate magnification for all points using microjaxx inverse ray shooting method."""
+        parameters = self._get_lens_parameters(geometry)
         w_points = self._get_w_points(x, y, parameters)
         parameters['u1'] = self._u_limb_darkening
 
