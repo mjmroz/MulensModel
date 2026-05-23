@@ -5,7 +5,7 @@ import jax.numpy as jnp
 
 from microjax.point_source import mag_point_source
 from microjax.caustics.lightcurve import magnifications
-from microjax.inverse_ray.lightcurve import mag_binary, mag_triple
+from microjax.inverse_ray.lightcurve import mag_triple
 
 from MulensModel.pointlens import _AbstractMagnification
 from MulensModel.binarylens import _LimbDarkeningForMagnification, _FiniteSource
@@ -50,9 +50,11 @@ class _TripleLensPointSourceMagnification(_AbstractMagnification):
         """
         if len(self._geometry) == 1:
             if self._zip_kwargs is None:
-                self._magnification = np.array(self._get_all_magnification(self._source_x, self._source_y, self._geometry))
+                self._magnification = np.array(self._get_all_magnification(
+                    self._source_x, self._source_y, self._geometry))
             else:
-                self._magnification = np.array(self._get_all_magnification(self._source_x, self._source_y, self._geometry, **self._zip_kwargs))
+                self._magnification = np.array(self._get_all_magnification(
+                    self._source_x, self._source_y, self._geometry, **self._zip_kwargs))
         else:
             zip_args = [self._source_x, self._source_y, self._geometry]
 
@@ -70,7 +72,8 @@ class _TripleLensPointSourceMagnification(_AbstractMagnification):
 
     def _get_w_points(self, x, y, parameters):
         """
-        Calculate trajectory for microjaxx not shifted to CM, internally in microjaxx the source trajectory is shifted back to CM.
+        Calculate trajectory for microjaxx not shifted to CM, internally in microjaxx
+        the source trajectory is shifted back to CM.
         """
         if isinstance(x, (int, float)):
             x = np.array([x])
@@ -81,9 +84,10 @@ class _TripleLensPointSourceMagnification(_AbstractMagnification):
     def _get_lens_parameters(self, geometry):
         s = jnp.sqrt((geometry[0] - geometry[3])**2)
         parameters = {'s': s, 'q_21': jnp.float64(self.trajectory.parameters.q_21),
-                                    'q_31': jnp.float64(self.trajectory.parameters.q_31), # separation between center of masss for m1/m2 and m3
-                                    'r_3': jnp.sqrt(geometry[6]**2. + geometry[7]**2.), # separation between center of masss for m1/m2 and m3
-                                    'psi': jnp.deg2rad(self._psi)} # angle of 3rd lens axis in radians
+                      'q_31': jnp.float64(self.trajectory.parameters.q_31),
+                      # separation between center of masss for m1/m2 and m3
+                      'r_3': jnp.sqrt(geometry[6]**2. + geometry[7]**2.),
+                      'psi': jnp.deg2rad(self._psi)}  # angle of 3rd lens axis in radians
 
         return parameters
 
@@ -117,11 +121,12 @@ class TripleLensPointSourceMicrojaxxMagnification(_TripleLensPointSourceMagnific
         w_points = self._get_w_points(x, y, parameters)
         return mag_point_source(w_points, n_lenses=3, **parameters)
 
+
 class TripleLensMicrojaxxInverseRayMagnification(_TripleLensPointSourceMagnification, _LimbDarkeningForMagnification,
-                                   _FiniteSource):
+                                                 _FiniteSource):
     """
-    Triple lens finite source magnification calculated using microjaxx library that implements inverse ray shooting method.
-    integration algorithm presented by
+    Triple lens finite source magnification calculated using microjaxx library that implements
+    inverse ray shooting method presented by
     Miyazaki, S., & Kawahara, H. 2025, ApJ, 994, 144, doi:10.3847/1538-4357/ae1005
     For coordinate system convention see
     :py:class:`BinaryLensQuadrupoleMagnification`
@@ -154,8 +159,8 @@ class TripleLensMicrojaxxInverseRayMagnification(_TripleLensPointSourceMagnifica
             self._u_limb_darkening = 0.0
 
     def _get_1_magnification(self, x, y, geometry, **kwargs):
-        """ 
-        Calculate 1 magnification using microjaxx inverse ray shooting method. 
+        """
+        Calculate 1 magnification using microjaxx inverse ray shooting method.
         """
         parameters = self._get_lens_parameters(geometry)
         w_points = self._get_w_points(x, y, parameters)
@@ -174,8 +179,8 @@ class TripleLensMicrojaxxInverseRayMagnification(_TripleLensPointSourceMagnifica
 
 class TripleLensCausticsMagnification(_TripleLensPointSourceMagnification, _LimbDarkeningForMagnification,
                                       _FiniteSource):
-    """Triple lens finite source magnification calculated using hybrid light-curve evaluation from the 'caustics' package implemented in microjaxx. 
-       see for details microjaxx documentation:
+    """Triple lens finite source magnification calculated using hybrid light-curve evaluation from
+    the 'caustics' package implemented in microjaxx. See for details microjaxx documentation:
        https://shotamiyazaki94.github.io/microjax/api/caustics_lightcurve.html
     """
 
@@ -193,7 +198,7 @@ class TripleLensCausticsMagnification(_TripleLensPointSourceMagnification, _Limb
 
     def _get_1_magnification(self, x, y, geometry, **kwargs):
         """
-        Calculate 1 magnification using microjaxx caustics lightcurve method. 
+        Calculate 1 magnification using microjaxx caustics lightcurve method.
         """
         parameters = self._get_lens_parameters(geometry)
         w_points = self._get_w_points(x, y, parameters)
