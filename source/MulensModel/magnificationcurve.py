@@ -456,7 +456,9 @@ class MagnificationCurve(object):
             if method.lower() == 'vbm_multiple':
                 self._magnification_objects[method] = \
                     mm.multiplelens.MultipleLensVBMMagnification(gamma=self._gamma, **kwargs)
-
+            elif method.lower() == 'triplelens':
+                self._magnification_objects[method] = \
+                    mm.triplelens.TripleLensMagnification(gamma=self._gamma, **kwargs)
             elif method.lower() == 'point_source_point_lens':
                 if self.parameters.s_21 < 1.:
                     co_mag_trajectory = trajectory
@@ -469,7 +471,7 @@ class MagnificationCurve(object):
                 self._magnification_objects[method] = \
                     mm.pointlens.PointSourcePointLensMagnification(trajectory=co_mag_trajectory)
             else:
-                msg = 'Unknown method specified for binary lens: {:}'
+                msg = 'Unknown method specified for triple lens: {:}'
                 raise ValueError(msg.format(method))
 
     def _set_binary_lens_w_shear_magnification_objects(self):

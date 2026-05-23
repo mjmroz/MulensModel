@@ -32,10 +32,10 @@ from MulensModel.trajectory import Trajectory
 from MulensModel.uniformcausticsampling import UniformCausticSampling
 from MulensModel.utils import MAG_ZEROPOINT, Utils
 from MulensModel.multiplelens import MultipleLensVBMMagnification, MultipleLensPointSourceVBMMagnification
+from MulensModel.triplelens import TripleLensMagnification
 from .version import __version__
 
-__all__ = [
-    'MultipleLensVBMMagnification', 'MultipleLensPointSourceVBMMagnification',
+__all__ = ['TripleLensMagnification', 'MultipleLensVBMMagnification', 'MultipleLensPointSourceVBMMagnification',
     'BinaryLensPointSourceWM95Magnification', 'BinaryLensPointSourceVBBLMagnification',
     'BinaryLensQuadrupoleMagnification', 'BinaryLensHexadecapoleMagnification', 'BinaryLensVBBLMagnification',
     'BinaryLensAdaptiveContouringMagnification', 'BinaryLensPointSourceWithShearWM95Magnification',
