@@ -446,14 +446,27 @@ class MagnificationCurve(object):
         for method, selection in self.methods_indices.items():
             kwargs = self._setup_kwargs(method)
 
-            if kwargs != dict() and method.lower() not in ['vbm', 'vbm_multiple', 'vbbl', 'adaptive_contouring']:
+            if kwargs != dict() and method.lower() not in ['vbm', 'vbm_multiple', 'vbbl', 'adaptive_contouring',
+                                                           'microjax', 'microjax_caustics', 'microjax_point_source']:
                 msg = 'Methods parameters passed for method {:} which does not accept any parameters'
                 raise ValueError(msg.format(method))
 
             trajectory = self._setup_trajectory(selection)
             kwargs['trajectory'] = trajectory
 
-            if method.lower() == 'vbm_multiple':
+            if method.lower() == 'microjax':
+                self._magnification_objects[method] = \
+                    mm.triplelens.TripleLensMicrojaxxInverseRayMagnification(
+                        gamma=self._gamma, **kwargs)
+            elif method.lower() == 'microjax_caustics':
+                self._magnification_objects[method] = \
+                    mm.triplelens.TripleLensCausticsMagnification(
+                        gamma=self._gamma, **kwargs)
+            elif method.lower() in 'microjax_point_source':
+                self._magnification_objects[method] = \
+                    mm.triplelens.TripleLensPointSourceMicrojaxxMagnification(
+                        gamma=self._gamma, **kwargs)
+            elif method.lower() == 'vbm_multiple':
                 self._magnification_objects[method] = \
                     mm.multiplelens.MultipleLensVBMMagnification(gamma=self._gamma, **kwargs)
 
