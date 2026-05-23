@@ -30,7 +30,7 @@ class _TripleLensPointSourceMagnification(_AbstractMagnification):
         super().__init__(trajectory=kwargs['trajectory'])
         # This speeds-up code for np.float input.
         # Can be manually changed to 'numpy'.
-        
+
         self._source_x = self.trajectory.x
         self._source_y = self.trajectory.y
         self._geometry = self.trajectory.parameters.get_lens_geometry(self.trajectory.times)
@@ -66,6 +66,25 @@ class _TripleLensPointSourceMagnification(_AbstractMagnification):
                         x, y, geometry, **kwargs_))
             self._magnification = np.array(out)
         return self._magnification
+    
+     def _get_w_points(self, x, y, parameters):
+        """
+        Calculate trajectory for microjaxx not shifted to CM, internally in microjaxx the source trajectory is shifted back to CM.
+        """
+        if isinstance(x, (int, float)):
+            x = np.array([x])
+            y = np.array([y])
+        x_cm = 0.5 * parameters['s'] * (1. - parameters['q_21']) / (1. + parameters['q_21'])
+        return jnp.array(x + x_cm + 1j * y, dtype=complex)
+
+    def _get_lens_parameters(self, geometry):
+        s = jnp.sqrt((geometry[0] - geometry[3])**2)
+        parameters = {'s': s, 'q_21': jnp.float64(self.trajectory.parameters.q_21),
+                                    'q_31': jnp.float64(self.trajectory.parameters.q_31), # separation between center of masss for m1/m2 and m3
+                                    'r_3': jnp.sqrt(geometry[6]**2. + geometry[7]**2.), # separation between center of masss for m1/m2 and m3
+                                    'psi': jnp.deg2rad(self._psi)} # angle of 3rd lens axis in radians
+
+        return parameters
 
 
 class TripleLensPointSourceMicrojaxxMagnification(_TripleLensPointSourceMagnification):
@@ -96,25 +115,6 @@ class TripleLensPointSourceMicrojaxxMagnification(_TripleLensPointSourceMagnific
         parameters = self._get_lens_parameters(geometry)
         w_points = self._get_w_points(x, y, parameters)
         return mag_point_source(w_points, n_lenses=3, **parameters)
-
-    def _get_w_points(self, x, y, parameters):
-        """
-        Calculate trajectory for microjaxx not shifted to CM, internally in microjaxx the source trajectory is shifted back to CM.
-        """
-        if isinstance(x, (int, float)):
-            x = np.array([x])
-            y = np.array([y])
-        x_cm = 0.5 * parameters['s'] * (1. - parameters['q_21']) / (1. + parameters['q_21'])
-        return jnp.array(x + x_cm + 1j * y, dtype=complex)
-
-    def _get_lens_parameters(self, geometry):
-        s = jnp.sqrt((geometry[0] - geometry[3])**2)
-        parameters = {'s': s, 'q_21': jnp.float64(self.trajectory.parameters.q_21),
-                                    'q_31': jnp.float64(self.trajectory.parameters.q_31), # separation between center of masss for m1/m2 and m3
-                                    'r_3': jnp.sqrt(geometry[6]**2. + geometry[7]**2.), # separation between center of masss for m1/m2 and m3
-                                    'psi': jnp.deg2rad(self._psi)} # angle of 3rd lens axis in radians
-
-        return parameters
 
 class TripleLensMicrojaxxInverseRayMagnification(_TripleLensPointSourceMagnification, _LimbDarkeningForMagnification,
                                    _FiniteSource):
@@ -148,7 +148,7 @@ class TripleLensMicrojaxxInverseRayMagnification(_TripleLensPointSourceMagnifica
         self._set_LD_coeffs(u_limb_darkening=u_limb_darkening, gamma=gamma)
         self._set_and_check_rho()
         self._zip_kwargs = microjaxx_kwargs
-        
+
         if self._u_limb_darkening is None:
             self._u_limb_darkening = 0.0
 
