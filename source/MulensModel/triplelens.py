@@ -83,10 +83,10 @@ class _TripleLensPointSourceMagnification(_AbstractMagnification):
 
     def _get_lens_parameters(self, geometry):
         s = jnp.sqrt((geometry[0] - geometry[3])**2)
-        parameters = {'s': s, 'q_21': jnp.float64(self.trajectory.parameters.q_21),
-                      'q_31': jnp.float64(self.trajectory.parameters.q_31),
+        parameters = {'s': s, 'q': jnp.float64(self.trajectory.parameters.q_21),
+                      'q3': jnp.float64(self.trajectory.parameters.q_31),
                       # separation between center of masss for m1/m2 and m3
-                      'r_3': jnp.sqrt(geometry[6]**2. + geometry[7]**2.),
+                      'r3': jnp.sqrt(geometry[6]**2. + geometry[7]**2.),
                       'psi': jnp.deg2rad(self._psi)}  # angle of 3rd lens axis in radians
 
         return parameters
