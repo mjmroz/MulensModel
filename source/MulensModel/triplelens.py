@@ -78,7 +78,7 @@ class _TripleLensPointSourceMagnification(_AbstractMagnification):
         if isinstance(x, (int, float)):
             x = np.array([x])
             y = np.array([y])
-        x_cm = 0.5 * parameters['s'] * (1. - parameters['q_21']) / (1. + parameters['q_21'])
+        x_cm = 0.5 * parameters['s'] * (1. - parameters['q']) / (1. + parameters['q'])
         return jnp.array(x + x_cm + 1j * y, dtype=complex)
 
     def _get_lens_parameters(self, geometry):
