@@ -31,8 +31,8 @@ def test_VBM_vs_microjax():
     # magtriple_VBM = model_VBM.get_magnification(t)
     # model_VBM.update_caustics()
     # caustics_VBM = model_VBM.caustics
-    x_VBM, y_VBM = caustics_VBM.get_caustics()
-    x_critical_VBM, y_critical_VBM = caustics_VBM._critical_curve.x, caustics_VBM._critical_curve.y
+    # x_VBM, y_VBM = caustics_VBM.get_caustics()
+    # x_critical_VBM, y_critical_VBM = caustics_VBM._critical_curve.x, caustics_VBM._critical_curve.y
 
     model_microjax = Model(parameters=parameters)
     model_microjax.set_magnification_methods([float(min(t)), 'microjax', float(max(t))])
