@@ -2124,14 +2124,14 @@ class ModelParameters(object):
         s_21 = self.get_s(epoch, s=self.s_21, ds_dt=parameters_dynamic['ds_21_dt'])
         q_21 = self.q_21
         alpha = self.get_alpha(epoch, angle=self.alpha, dangle_dt=parameters_dynamic['dalpha_dt'])
-        s_31 = self.get_s(epoch, s=self.s_31, ds_dt=parameters_dynamic['ds_31_dt'], lens=3)
+        s_31 = self.get_s(epoch, s=self.s_31, ds_dt=parameters_dynamic.get('ds_31_dt',0.), lens=3)
         q_31 = self.q_31
         if 'psi' not in self.parameters.keys():
             if self.alpha_31 is not None:
                 self.psi = self.alpha - self.alpha_31
             else:
                 raise ValueError("For 3 lens system either psi or alpha_31 should be provided ")
-        psi = self.get_alpha(epoch, angle=self.psi, dangle_dt=parameters_dynamic['dpsi_dt'], lens=3)
+        psi = self.get_alpha(epoch, angle=self.psi, dangle_dt=parameters_dynamic.get('dpsi_dt',0.), lens=3)
         geometry = self._get_lens_geometry(epoch, s_21, q_21, alpha, s_31, q_31, psi)
 
         return geometry
