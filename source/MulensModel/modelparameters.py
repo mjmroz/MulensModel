@@ -623,7 +623,10 @@ class ModelParameters(object):
         self._check_valid_combination_1_source_t_E(keys)
         self._check_valid_combination_1_source_parallax(keys)
         self._check_valid_combination_1_source_mass_sheet(keys)
-        self._check_valid_combination_1_source_binary_lens(keys)
+        if self._n_lenses == 3:
+            self._check_valid_combination_1_source_triple_lens(keys)
+        else:
+            self._check_valid_combination_1_source_binary_lens(keys)
         self._check_valid_combination_1_source_xallarap(keys)
 
     def _check_valid_combination_1_source_t_0_u_0(self, keys):
