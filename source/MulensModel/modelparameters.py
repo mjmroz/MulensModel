@@ -186,7 +186,7 @@ class ModelParameters(object):
         sets self._type property, which indicates what type of a model we have
         """
         types = ['finite source', 'parallax', 'Cassan08', 'lens orbital motion', 'keplerian motion',
-                 'circular keplerian motion', 'coplanar planetary keplerina motion', 'elliptical keplerian motion', 'mass sheet', 'xallarap']
+                 'circular keplerian motion', 'coplanar planetary keplerian motion', 'elliptical keplerian motion', 'mass sheet', 'xallarap']
         out = {type_: False for type_ in types}
 
         temp = {
@@ -2258,18 +2258,8 @@ class ModelParameters(object):
 
         if self._type['keplerian motion']:
             self._set_lens_keplerian_orbit()
-            if lens ==2 :
-                sky_positions = self._lens_orbit.get_reference_plane_position(epoch)
-                angle_of_t = angle + np.arctan2(sky_positions[1, :], sky_positions[0, :]) * 180 / np.pi
-                self._sky_positions_2 = sky_positions
-            else:
-                if not hasattr(self, '_sky_positions_2'):
-                    self._sky_positions_2 = self._lens_orbit.get_reference_plane_position(epoch)
-                sky_positions_2 = self._sky_positions_2
-
-                sky_positions_3 = self._coplanar_lenses_orbits[lens-3].get_reference_plane_position(epoch)
-
-                angle_of_t = angle - np.arctan2(sky_positions_2[1, :], sky_positions_2[0, :]) * 180 / np.pi +  np.arctan2(sky_positions_3[1, :], sky_positions_3[0, :]) * 180 / np.pi
+            sky_positions = self._lens_orbit.get_reference_plane_position(epoch)
+            angle_of_t = angle + np.arctan2(sky_positions[1], sky_positions[0]) * 180 / np.pi
         else:
             angle_of_t = angle + dangle_dt * (epoch - self.t_0_kep) / 365.25
 
@@ -2380,11 +2370,7 @@ class ModelParameters(object):
         """
         Set self._lens_keplerian for a circular orbit.
         """
-        if 's' in self.parameters:
-            s = self.s
-        else:
-            s = self.s_21
-        velocity = s * gamma  # This is in units of R_E = D_L * theta_E.
+        velocity = self.s * gamma  # This is in units of R_E = D_L * theta_E.
         a = np.sqrt(np.sum(position**2))
         self._lens_keplerian['semimajor_axis'] = a
         self._lens_keplerian['period'] = 2 * np.pi * a / np.sqrt(np.sum(velocity**2)) * 365.25
@@ -2401,14 +2387,14 @@ class ModelParameters(object):
         """
         Set self._lens_keplerian for an elliptical orbit.
         """
-        velocity = self.s * gamma  # This is in units of R_E/yr = (D_L * theta_E) / yr.
+        velocity = self.s * gamma  # This is in units of R_E / yr = (D_L * theta_E) / yr.
         separation = np.sqrt(np.sum(position**2))
         self._lens_keplerian['semimajor_axis'] = separation * self.a_s
         h = np.cross(position, velocity)
         r_s = self.s_z / self.s
         GM_over_rE3 = self.s**3 * self.a_s * np.sqrt(1. + r_s**2) * np.sum(gamma**2) / (2. * self.a_s - 1.)
-        n = np.sqrt(GM_over_rE3 / self._lens_keplerian['semimajor_axis']**3)
-        self._lens_keplerian['period'] = 2. * np.pi / n * 365.25
+        n = np.sqrt(GM_over_rE3 / self._lens_keplerian['semimajor_axis']**3) / 365.25  # The unit is rad/day.
+        self._lens_keplerian['period'] = 2. * np.pi / n
         e = np.cross(velocity, h) / GM_over_rE3 - position / separation
         eccentricity = np.clip(np.sqrt(np.sum(e**2)), -1., 1.)
         self._lens_keplerian['eccentricity'] = eccentricity
@@ -2467,6 +2453,19 @@ class ModelParameters(object):
         """
         self._set_lens_keplerian_orbit()
         return self._lens_keplerian['semimajor_axis']
+
+    @property
+    def lens_eccentricity(self):
+        """
+        *float*
+
+        Eccentricity of the binary lens orbit.
+        """
+        self._set_lens_keplerian_orbit()
+        if self._type['circular keplerian motion']:
+            return 0.
+
+        return self._lens_keplerian['eccentricity']
 
     @property
     def lens_3_semimajor_axis(self):

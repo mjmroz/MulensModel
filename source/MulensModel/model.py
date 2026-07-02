@@ -454,8 +454,7 @@ class Model(object):
         convergence_K = self.parameters.parameters.get('convergence_K', 0)
         shear_G = self.parameters.parameters.get('shear_G', complex(0, 0))
 
-        self._caustics = CausticsPointWithShear(
-            convergence_K=convergence_K, shear_G=shear_G)
+        self._caustics = CausticsPointWithShear(convergence_K=convergence_K, shear_G=shear_G)
 
     def _update_caustics_binary_lens(self, epoch):
         """
@@ -995,8 +994,6 @@ class Model(object):
         elif self.n_lenses == 2:
             methods_all_str = (
                 'point_source quadrupole hexadecapole vbm vbbl adaptive_contouring point_source_point_lens')
-        elif self.n_lenses == 3:
-            methods_all_str = 'vbm_multiple'
         else:
             msg = 'wrong value of Model.n_lenses: {:}'
             raise ValueError(msg.format(self.n_lenses))

@@ -6,7 +6,7 @@
 
 <img style="float: right;" width="500" src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Nancy_Grace_Roman_Space_Telescope_Illustrations_%28Roman_Title_1%29.jpg/960px-Nancy_Grace_Roman_Space_Telescope_Illustrations_%28Roman_Title_1%29.jpg">
 
-[RMDC26](https://rges-pit.org/data-challenge/) was announced in Jan 2026. If you want to participate, then you're welcome to use MulensModel. It's possible some new features will be needed. In that case, please [open an issue](https://github.com/rpoleski/MulensModel/issues/new) and we will try to help.
+[RMDC26](https://rges-pit.org/data-challenge/) was announced in Mar 2026. If you want to participate, then you're welcome to use MulensModel. It's possible some new features will be needed. In that case, please [open an issue](https://github.com/rpoleski/MulensModel/issues/new) and we will try to help. For information about Roman ephemeris please see [here](data/Roman_DC_2026).
 
 **NEW - we're working on triple lenses.** This feature generally works, but API may change. For current status see [the branch by mjmroz](https://github.com/mjmroz/MulensModel/tree/VBM_3L). The code is discussed in [the pull request](https://github.com/rpoleski/MulensModel/pull/213).
 
@@ -16,7 +16,7 @@
 
 [**Detailed documentation: https://rpoleski.github.io/MulensModel/**](https://rpoleski.github.io/MulensModel/)
 
-[Latest release: 3.9.0](https://github.com/rpoleski/MulensModel/releases/latest) and we're working on further developing the code.
+[Latest release: 3.10.0](https://github.com/rpoleski/MulensModel/releases/latest) and we're working on further developing the code.
 
 MulensModel can generate a microlensing light curve for a given set of microlensing parameters, fit that light curve to some data, and return a chi2 value. That chi2 (and its gradient in some cases) can then be input into an arbitrary likelihood function to find the best-fit parameters.
 
@@ -71,4 +71,4 @@ If you want to contribute to MulensModel, then please see [this file](CONTRIBUTI
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/MulensModel)
 ![example workflow](https://github.com/rpoleski/MulensModel/actions/workflows/python-app.yml/badge.svg)
 
-file revised Apr 2026
+file revised Jul 2026
