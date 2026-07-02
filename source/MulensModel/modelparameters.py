@@ -186,7 +186,7 @@ class ModelParameters(object):
         sets self._type property, which indicates what type of a model we have
         """
         types = ['finite source', 'parallax', 'Cassan08', 'lens orbital motion', 'keplerian motion',
-                 'circular keplerian motion', 'coplanar planetary keplerina motion', 'elliptical keplerian motion', 'mass sheet', 'xallarap']
+                 'circular keplerian motion', 'coplanar planetary keplerian motion', 'elliptical keplerian motion', 'mass sheet', 'xallarap']
         out = {type_: False for type_ in types}
 
         temp = {
