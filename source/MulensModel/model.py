@@ -445,7 +445,7 @@ class Model(object):
         elif self.n_lenses == 2:
             self._update_caustics_binary_lens(epoch)
         else:
-            raise ValueError('updating triple lens caustics not yet coded')
+            self._update_caustics_multiple_lens(epoch)
 
     def _update_caustics_single_lens(self):
         """
