@@ -10,7 +10,9 @@ from microjax.inverse_ray.lightcurve import mag_triple
 from MulensModel.pointlens import _AbstractMagnification
 from MulensModel.binarylens import _LimbDarkeningForMagnification, _FiniteSource
 
-jax.config.update("jax_enable_x64", True)  # stabilises the polynomial solver
+jax.config.update('jax_platform_name', 'cpu')
+jax.config.update("jax_enable_x64", True)
+
 
 
 class _TripleLensPointSourceMagnification(_AbstractMagnification):

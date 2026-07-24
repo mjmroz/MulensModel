@@ -1,3 +1,6 @@
+import time
+
+import jax
 from numpy.testing import assert_almost_equal
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,11 +16,13 @@ def test_VBM_vs_microjax():
     Test MulensModel.Model() for triple lens vs VBMicrolensing. The test is based on the example from VBMicrolensing:
     https://github.com/valboz/VBMicrolensing/blob/main/examples/python_examples/Triple_lens.ipynb
     """
+    
+    
     VBM = VBMicrolensing.VBMicrolensing()
     VBM.RelTol = 1e-04
     VBM.Tol = 1e-04
 
-    num_points = 1000
+    num_points = 200
     tmin = -50
     tmax = 50
 
@@ -25,25 +30,31 @@ def test_VBM_vs_microjax():
                   't_E': 50.13, 't_0': 0, 's_31': 1.5, 'q_31': 0.000001, 'psi': np.degrees(-1.5)}
     t = np.linspace(parameters['t_0'] + tmin, parameters['t_0'] + tmax, num_points)
 
-    # model_VBM = Model(parameters=parameters)
-    # model_VBM.set_magnification_methods([float(min(t)), 'vbm_multiple', float(max(t))])
-    # model_VBM.default_magnification_method = 'vbm_multiple'
-    # magtriple_VBM = model_VBM.get_magnification(t)
-    # model_VBM.update_caustics()
-    # caustics_VBM = model_VBM.caustics
-    # x_VBM, y_VBM = caustics_VBM.get_caustics()
-    # x_critical_VBM, y_critical_VBM = caustics_VBM._critical_curve.x, caustics_VBM._critical_curve.y
 
+    model_VBM = Model(parameters=parameters)
+    model_VBM.set_magnification_methods([float(min(t)), 'vbm_multiple', float(max(t))])
+    model_VBM.default_magnification_method = 'vbm_multiple'
+    time_start = time.time()
+    magtriple_VBM = model_VBM.get_magnification(t)
+    time_VBM = time.time() - time_start
+    model_VBM.update_caustics()
+    caustics_VBM = model_VBM.caustics
+    x_VBM, y_VBM = caustics_VBM.get_caustics()
+    x_critical_VBM, y_critical_VBM = caustics_VBM._critical_curve.x, caustics_VBM._critical_curve.y
+
+    print(jax.devices())
     model_microjax = Model(parameters=parameters)
     model_microjax.set_magnification_methods([float(min(t)), 'microjax', float(max(t))])
     model_microjax.default_magnification_method = 'microjax'
+    time_start = time.time()
     magtriple_microjax = model_microjax.get_magnification(t)
+    time_microjax = time.time() - time_start
     # model_microjax.update_caustics()
     # caustics_microjax = model_microjax.caustics
     # x_microjax, y_microjax = caustics_microjax.get_caustics()
     # x_critical_microjax, y_critical_microjax = caustics_microjax._critical_curve.x, caustics_microjax._critical_curve.y
 
-
+    print(f"VBM time: {time_VBM:.3f} s, Microjax time: {time_microjax:.3f} s")
 
     if plot:
         plt.plot(t, magtriple_microjax, color='b', label='Microjax magnification')
@@ -57,7 +68,9 @@ def test_VBM_vs_microjax():
         # plt.xlabel('x')
         # plt.ylabel('y')
         # plt.title('Caustics and critical curves for triple lens')
+        plt.savefig('triple_lens_magnification_microjax.png', dpi=300)
         plt.show()
+        
 
 # The line `assert_almost_equal(magtriple_microjax[0], magtriple_VBM[0], decimal=3,
 # err_msg='Magnification')` is performing an assertion check in the Python test function.
