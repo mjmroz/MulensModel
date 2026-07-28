@@ -10,7 +10,7 @@ from microjax.inverse_ray.lightcurve import mag_triple
 from MulensModel.pointlens import _AbstractMagnification
 from MulensModel.binarylens import _LimbDarkeningForMagnification, _FiniteSource
 
-jax.config.update('jax_platform_name', 'cpu')
+#jax.config.update('jax_platform_name', 'cpu')
 jax.config.update("jax_enable_x64", True)
 
 
@@ -39,6 +39,14 @@ class _TripleLensPointSourceMagnification(_AbstractMagnification):
         self._geometry = self.trajectory.parameters.get_lens_geometry(self.trajectory.times)
         self._psi = self.trajectory.parameters.psi
         self._zip_kwargs = None
+        self._check_if_static()
+
+    def _check_if_static(self):
+        """
+        Check if the lens system is static or not.
+        """
+        #if all(x == self._geometry[0] for x in self._geometry):
+        self._geometry = [self._geometry[0]]
 
     def get_magnification(self):
         """
@@ -50,13 +58,14 @@ class _TripleLensPointSourceMagnification(_AbstractMagnification):
             magnification: *np.ndarray*
                 The magnification for each point in :py:attr:`~trajectory`.
         """
+        print("geometry", self._geometry)
         if len(self._geometry) == 1:
             if self._zip_kwargs is None:
                 self._magnification = np.array(self._get_all_magnification(
-                    self._source_x, self._source_y, self._geometry))
+                    self._source_x, self._source_y, self._geometry[0]))
             else:
                 self._magnification = np.array(self._get_all_magnification(
-                    self._source_x, self._source_y, self._geometry, **self._zip_kwargs))
+                    self._source_x, self._source_y, self._geometry[0], **self._zip_kwargs))
         else:
             zip_args = [self._source_x, self._source_y, self._geometry]
 
@@ -74,29 +83,31 @@ class _TripleLensPointSourceMagnification(_AbstractMagnification):
 
     def _get_w_points(self, x, y, parameters):
         """
-        Calculate trajectory for microjaxx not shifted to CM, internally in microjaxx
-        the source trajectory is shifted back to CM.
+        Calculate trajectory for microjax.
         """
         if isinstance(x, (int, float)):
             x = np.array([x])
             y = np.array([y])
-        x_cm = 0.5 * parameters['s'] * (1. - parameters['q']) / (1. + parameters['q'])
-        return jnp.array(x + x_cm + 1j * y, dtype=complex)
+        # x_cm = 0.5 * parameters['s'] * (1. - parameters['q']) / (1. + parameters['q'])
+        return jnp.array(x +  1j * y, dtype=complex)
 
     def _get_lens_parameters(self, geometry):
+        """
+        Get lens parameters for microjax.
+        """
         s = jnp.sqrt((geometry[0] - geometry[3])**2)
         parameters = {'s': s, 'q': jnp.float64(self.trajectory.parameters.q_21),
                       'q3': jnp.float64(self.trajectory.parameters.q_31),
                       # separation between center of masss for m1/m2 and m3
                       'r3': jnp.sqrt(geometry[6]**2. + geometry[7]**2.),
-                      'psi': jnp.deg2rad(self._psi)}  # angle of 3rd lens axis in radians
-
+                     # microjax expects the angle in radians from the x-axis to the line connecting the center of mass of m1/m2 and m3, so not the same as MulensModel psi
+                      'psi': jnp.arctan2(geometry[7], geometry[6])}
         return parameters
 
 
-class TripleLensPointSourceMicrojaxxMagnification(_TripleLensPointSourceMagnification):
+class TripleLensPointSourceMicrojaxMagnification(_TripleLensPointSourceMagnification):
     """
-    Equations for calculating point-source--triple-lens magnification using microjaxx for point sources.
+    Equations for calculating point-source--triple-lens magnification using microjax for point sources.
     Arguments :
         trajectory: :py:class:`~MulensModel.trajectory.Trajectory`
             Including trajectory.parameters =
@@ -118,16 +129,16 @@ class TripleLensPointSourceMicrojaxxMagnification(_TripleLensPointSourceMagnific
         return mag_point_source(w_points, n_lenses=3, **parameters)[0]
 
     def _get_all_magnification(self, x, y, geometry, **kwargs):
-        """Calculate magnification for all points using microjaxx."""
+        """Calculate magnification for all points using microjax."""
         parameters = self._get_lens_parameters(geometry)
         w_points = self._get_w_points(x, y, parameters)
         return mag_point_source(w_points, n_lenses=3, **parameters)
 
 
-class TripleLensMicrojaxxInverseRayMagnification(_TripleLensPointSourceMagnification, _LimbDarkeningForMagnification,
+class TripleLensMicrojaxInverseRayMagnification(_TripleLensPointSourceMagnification, _LimbDarkeningForMagnification,
                                                  _FiniteSource):
     """
-    Triple lens finite source magnification calculated using microjaxx library that implements
+    Triple lens finite source magnification calculated using microjax library that implements
     inverse ray shooting method presented by
     Miyazaki, S., & Kawahara, H. 2025, ApJ, 994, 144, doi:10.3847/1538-4357/ae1005
     For coordinate system convention see
@@ -147,73 +158,73 @@ class TripleLensMicrojaxxInverseRayMagnification(_TripleLensPointSourceMagnifica
             set.  If neither of them is provided then limb
             darkening is ignored.
 
-        microjaxx_kwargs: *dict*
-        see for details microjaxx documentation:
+        microjax_kwargs: *dict*
+        see for details microjax documentation:
         https://shotamiyazaki94.github.io/microjax/api/inverse_ray_lightcurve.html#microjax.inverse_ray.lightcurve.mag_triple
     """
-    def __init__(self, gamma=None, u_limb_darkening=None, microjaxx_kwargs={}, **kwargs):
+    def __init__(self, gamma=None, u_limb_darkening=None, microjax_kwargs={}, **kwargs):
         super().__init__(**kwargs)
         self._set_LD_coeffs(u_limb_darkening=u_limb_darkening, gamma=gamma)
         self._set_and_check_rho()
-        self._microjaxx_kwargs = microjaxx_kwargs
+        self._microjax_kwargs = microjax_kwargs
 
         if self._u_limb_darkening is None:
             self._u_limb_darkening = 0.0
 
     def _get_1_magnification(self, x, y, geometry, **kwargs):
         """
-        Calculate 1 magnification using microjaxx inverse ray shooting method.
+        Calculate 1 magnification using microjax inverse ray shooting method.
         """
         parameters = self._get_lens_parameters(geometry)
         w_points = self._get_w_points(x, y, parameters)
         parameters['u1'] = self._u_limb_darkening
 
-        return mag_triple(w_points, self._rho, **parameters, **self._microjaxx_kwargs)[0]
+        return mag_triple(w_points, self._rho, **parameters, **self._microjax_kwargs)[0]
 
     def _get_all_magnification(self, x, y, geometry, **kwargs):
-        """Calculate magnification for all points using microjaxx inverse ray shooting method."""
+        """Calculate magnification for all points using microjax inverse ray shooting method."""
         parameters = self._get_lens_parameters(geometry)
         w_points = self._get_w_points(x, y, parameters)
         parameters['u1'] = self._u_limb_darkening
 
-        return mag_triple(w_points, self._rho, **parameters, **self._microjaxx_kwargs)
+        return mag_triple(w_points, self._rho, **parameters, **self._microjax_kwargs)
 
 
 class TripleLensCausticsMagnification(_TripleLensPointSourceMagnification, _LimbDarkeningForMagnification,
                                       _FiniteSource):
     """Triple lens finite source magnification calculated using hybrid light-curve evaluation from
-    the 'caustics' package implemented in microjaxx. See for details microjaxx documentation:
+    the 'caustics' package implemented in microjax. See for details microjax documentation:
        https://shotamiyazaki94.github.io/microjax/api/caustics_lightcurve.html
     """
 
-    def __init__(self, gamma=None, u_limb_darkening=None, microjaxx_kwargs={}, **kwargs):
+    def __init__(self, gamma=None, u_limb_darkening=None, microjax_kwargs={}, **kwargs):
         super().__init__(**kwargs)
         self._set_LD_coeffs(u_limb_darkening=u_limb_darkening, gamma=gamma)
         self._set_and_check_rho()
-        self._microjaxx_kwargs = microjaxx_kwargs
+        self._microjax_kwargs = microjax_kwargs
 
         if self._u_limb_darkening is None:
             self._u_limb_darkening = 0.0
-            self._microjaxx_kwargs['limb_darkening'] = 'false'
+            self._microjax_kwargs['limb_darkening'] = 'false'
         else:
-            self._microjaxx_kwargs['limb_darkening'] = 'true'
+            self._microjax_kwargs['limb_darkening'] = 'true'
 
     def _get_1_magnification(self, x, y, geometry, **kwargs):
         """
-        Calculate 1 magnification using microjaxx caustics lightcurve method.
+        Calculate 1 magnification using microjax caustics lightcurve method.
         """
         parameters = self._get_lens_parameters(geometry)
         w_points = self._get_w_points(x, y, parameters)
         parameters['u1'] = self._u_limb_darkening
         parameters['n_lenses'] = 3
-        return magnifications(w_points, self._rho, **parameters, **self._microjaxx_kwargs)[0]
+        return magnifications(w_points, self._rho, **parameters, **self._microjax_kwargs)[0]
 
     def _get_all_magnification(self, x, y, geometry, **kwargs):
         """
-        Calculate magnification for all points using microjaxx caustics lightcurve method.
+        Calculate magnification for all points using microjax caustics lightcurve method.
         """
         parameters = self._get_lens_parameters(geometry)
         w_points = self._get_w_points(x, y, parameters)
         parameters['u1'] = self._u_limb_darkening
         parameters['n_lenses'] = 3
-        return magnifications(w_points, self._rho, **parameters, **self._microjaxx_kwargs)
+        return magnifications(w_points, self._rho, **parameters, **self._microjax_kwargs)

@@ -456,7 +456,7 @@ class MagnificationCurve(object):
 
             if method.lower() == 'microjax':
                 self._magnification_objects[method] = \
-                    mm.triplelens.TripleLensMicrojaxxInverseRayMagnification(
+                    mm.triplelens.TripleLensMicrojaxInverseRayMagnification(
                         gamma=self._gamma, **kwargs)
             elif method.lower() == 'microjax_caustics':
                 self._magnification_objects[method] = \
@@ -464,7 +464,7 @@ class MagnificationCurve(object):
                         gamma=self._gamma, **kwargs)
             elif method.lower() in 'microjax_point_source':
                 self._magnification_objects[method] = \
-                    mm.triplelens.TripleLensPointSourceMicrojaxxMagnification(
+                    mm.triplelens.TripleLensPointSourceMicrojaxMagnification(
                         gamma=self._gamma, **kwargs)
             elif method.lower() == 'vbm_multiple':
                 self._magnification_objects[method] = \
