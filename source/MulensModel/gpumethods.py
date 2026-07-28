@@ -21,13 +21,14 @@ class BinaryLensTwinkleGpuMagnification(_BinaryLensPointSourceMagnification, _Li
         super().__init__(**kwargs)
         self._set_LD_coeffs(u_limb_darkening=u_limb_darkening, gamma=gamma)
         self._set_and_check_rho()
-        self._Nsrcs = 1
+        self._Nsrcs = len(self._trajectory.x)
         self._device_num = self._parse_device_num(device_num)
         self._N_stream = self._parse_N_stream(N_stream)
         self._RelTol = self._parse_accuracy(RelTol)
 
         self._astrometry = False
         self._twinkle = twinkle.Twinkle(self._Nsrcs, self._device_num, self._N_stream, self._RelTol, self._astrometry)
+        self._magnification = np.empty(self._Nsrcs)
 
     def _parse_device_num(self, device_num):
         """
@@ -106,14 +107,12 @@ class BinaryLensTwinkleGpuMagnification(_BinaryLensPointSourceMagnification, _Li
         return self._magnification
 
     def _get_all_magnification(self, x, y, separation):
-        Nsrcs = len(x)
-        self._twinkle = twinkle.Twinkle(Nsrcs, self._device_num, self._N_stream, self._RelTol, self._astrometry)
+
         self._twinkle.set_params(np.array(separation, dtype=np.float64), np.float64(self._q), np.float64(self._rho),
                                  np.array(x, dtype=np.float64), np.array(y, dtype=np.float64))
         if self._u_limb_darkening is None:
             self._twinkle.run()
         else:
             self._twinkle.runLD(self._u_limb_darkening)
-        magnification = np.empty(Nsrcs)
-        self._twinkle.return_mag_to(magnification)
-        return magnification
+        self._twinkle.return_mag_to(self._magnification)
+        return self._magnification
