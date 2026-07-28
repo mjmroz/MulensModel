@@ -423,8 +423,9 @@ class MagnificationCurve(object):
                 self._magnification_objects[method] = \
                     mm.pointlens.PointSourcePointLensMagnification(trajectory=co_mag_trajectory)
             elif method.lower() == 'twinkle':
+                import MulensModel.gpumethods as gpumethods
                 self._magnification_objects[method] = \
-                    mm.gpumethods.BinaryLensTwinkleGpuMagnification(gamma=self._gamma, **kwargs)
+                    gpumethods.BinaryLensTwinkleGpuMagnification(gamma=self._gamma, **kwargs)
             else:
                 msg = 'Unknown method specified for binary lens: {:}'
                 raise ValueError(msg.format(method))

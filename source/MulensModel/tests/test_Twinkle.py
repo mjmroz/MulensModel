@@ -5,23 +5,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from MulensModel.model import Model
 import VBMicrolensing
-from microjax.point_source import mag_point_source, critical_and_caustic_curves
-
 
 plot = True
 
 
-import jax
-import jax.numpy as jnp
 
-print(jax.devices())
-print(jax.default_backend())
 def test_VBM_vs_Twinkle():
     """
     Test MulensModel.Model() for Twinkle  binary lens magnification vs VBMicrolensing.
     """
-    
-
     num_points = 200
     tmin = -50
     tmax = 50
