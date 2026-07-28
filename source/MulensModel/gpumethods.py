@@ -4,12 +4,11 @@ from ctypes.util import find_library
 import numpy as np
 import twinkle
 
-from MulensModel.pointlens import _AbstractMagnification
 from MulensModel.binarylens import _LimbDarkeningForMagnification, _FiniteSource, _BinaryLensPointSourceMagnification
 
 
-class BinaryLensTwinkleGpuMagnification(_BinaryLensPointSourceMagnification,_LimbDarkeningForMagnification,
-                                                _FiniteSource):
+class BinaryLensTwinkleGpuMagnification(_BinaryLensPointSourceMagnification, _LimbDarkeningForMagnification,
+                                        _FiniteSource):
     """
     Equations for calculating point-source--binary-lens magnification using twinkle for point sources.
     Arguments :
@@ -97,10 +96,9 @@ class BinaryLensTwinkleGpuMagnification(_BinaryLensPointSourceMagnification,_Lim
             magnification: *np.ndarray*
                 The magnification for each point in :py:attr:`~trajectory`.
         """
-        
         if self._zip_kwargs is None:
-            self._magnification = np.array(self._get_all_magnification(
-                self._source_x, self._source_y, self._separations))
+            self._magnification = np.array(self._get_all_magnification(self._source_x, self._source_y,
+                                                                       self._separations))
         else:
             self._magnification = np.array(self._get_all_magnification(
                 self._source_x, self._source_y, self._separations, **self._zip_kwargs))
@@ -110,7 +108,8 @@ class BinaryLensTwinkleGpuMagnification(_BinaryLensPointSourceMagnification,_Lim
     def _get_all_magnification(self, x, y, separation):
         Nsrcs = len(x)
         self._twinkle = twinkle.Twinkle(Nsrcs, self._device_num, self._N_stream, self._RelTol, self._astrometry)
-        self._twinkle.set_params(np.array(separation, dtype=np.float64), np.float64(self._q), np.float64(self._rho), np.array(x, dtype=np.float64), np.array(y, dtype=np.float64))
+        self._twinkle.set_params(np.array(separation, dtype=np.float64), np.float64(self._q), np.float64(self._rho),
+                                 np.array(x, dtype=np.float64), np.array(y, dtype=np.float64))
         if self._u_limb_darkening is None:
             self._twinkle.run()
         else:

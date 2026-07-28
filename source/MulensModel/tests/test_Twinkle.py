@@ -4,10 +4,6 @@ from numpy.testing import assert_almost_equal
 import numpy as np
 import matplotlib.pyplot as plt
 from MulensModel.model import Model
-import VBMicrolensing
-
-plot = True
-
 
 
 def test_VBM_vs_Twinkle():
@@ -19,12 +15,11 @@ def test_VBM_vs_Twinkle():
     tmax = 50
 
     parameters = {'s': 2, 'q': 1, 'u_0': 0.006, 'alpha': np.degrees(3.212), 'rho': 0.0567,
-                  't_E': 50.13, 't_0': 0,}
+                  't_E': 50.13, 't_0': 0}
     t = np.linspace(parameters['t_0'] + tmin, parameters['t_0'] + tmax, num_points)
 
-
     model_VBM = Model(parameters=parameters)
-    #model_VBM.set_magnification_methods([float(min(t)), 'vbm_multiple', float(max(t))])
+    # model_VBM.set_magnification_methods([float(min(t)), 'vbm_multiple', float(max(t))])
     model_VBM.default_magnification_method = 'vbm'
     time_start = time.time()
     mag_VBM = model_VBM.get_magnification(t)
@@ -49,12 +44,6 @@ def test_VBM_vs_Twinkle():
     time_start = time.time()
     mag_twinkle = model_twinkle.get_magnification(t)
     time_twinkle = time.time() - time_start
-
-    model_twinkle.update_caustics()
-    caustics_twinkle = model_twinkle.caustics
-    x_twinkle, y_twinkle = caustics_twinkle.get_caustics()
-    x_critical_twinkle, y_critical_twinkle = caustics_twinkle._critical_curve.x, caustics_twinkle._critical_curve.y
-
     print(f"VBM time: {time_VBM:.3f} s, Twinkle time: {time_twinkle:.3f} s")
 
     if plot:
@@ -74,5 +63,5 @@ def test_VBM_vs_Twinkle():
 
 
 if __name__ == '__main__':
-    plot = True
+    plot = False
     test_VBM_vs_Twinkle()
