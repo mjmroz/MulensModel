@@ -340,7 +340,7 @@ class MagnificationCurve(object):
                 `Bozza et al. 2018 MNRAS, 479, 5157
                 <https://ui.adsabs.harvard.edu/abs/2018MNRAS.479.5157B/abstract>`_.
                 This method interpolates pre-computed tables. The relative
-                interpolation errors are smaller than 10^-4.
+                interpolation ergpumethods.pyrors are smaller than 10^-4.
 
             ``finite_source_LD_Yoo04``:
                 Uses the `Yoo et al. 2004 ApJ, 603, 139
@@ -422,6 +422,9 @@ class MagnificationCurve(object):
 
                 self._magnification_objects[method] = \
                     mm.pointlens.PointSourcePointLensMagnification(trajectory=co_mag_trajectory)
+            elif method.lower() == 'twinkle':
+                self._magnification_objects[method] = \
+                    mm.gpumethods.BinaryLensTwinkleGpuMagnification(gamma=self._gamma, **kwargs)
             else:
                 msg = 'Unknown method specified for binary lens: {:}'
                 raise ValueError(msg.format(method))
@@ -484,6 +487,10 @@ class MagnificationCurve(object):
             ``point_source_point_lens``:
                 Uses point-source _point_-_lens_ approximation; useful when you consider binary lens but need
                 magnification very far from the lens (e.g. at separation u = 100).
+
+            ``Twinkle``:
+                Uses a GPU-based high-efficiency binary-lens code Twinkle by Wang et al, 2025, ApJS, 276, 40. See:
+                https://github.com/AsterLight0626/Twinkle
 
         Returns :
             magnification: *np.ndarray*
