@@ -1252,7 +1252,7 @@ class Model(object):
                 ephemerides_file=self.ephemerides_file)
             return satellite_skycoords.get_satellite_coords(times)
 
-    def get_magnification(self, time, satellite_skycoord=None, gamma=None,
+    def get_magnification(self, time, magnification_setup=None, satellite_skycoord=None, gamma=None,
                           bandpass=None, source_flux_ratio=None, separate=None):
         """
         Calculate the model magnification for the given time(s).
@@ -1315,11 +1315,11 @@ class Model(object):
                     separate = False
 
         magnification = self._get_magnification(
-            time, satellite_skycoord, gamma, source_flux_ratio, separate)
+            time, magnification_setup, satellite_skycoord, gamma, source_flux_ratio, separate)
 
         return magnification
 
-    def _get_magnification(self, time, satellite_skycoord, gamma,
+    def _get_magnification(self, time, magnification_setup, satellite_skycoord, gamma,
                            source_flux_ratio, separate):
         """
         Internal function that calculates magnification.
@@ -1345,11 +1345,11 @@ class Model(object):
                     'cannot be True for single source models')
             else:
                 magnification = self._magnification_1_source(
-                    time, satellite_skycoord, gamma)
+                    time, magnification_setup, satellite_skycoord, gamma)
 
         elif self.n_sources >= 2:
             magnification = self._magnification_N_sources(
-                time, satellite_skycoord, gamma, source_flux_ratio,
+                time, magnification_setup, satellite_skycoord, gamma, source_flux_ratio,
                 separate)
         else:
             raise ValueError('Invalid number of sources: {:}'.format(self.n_sources))

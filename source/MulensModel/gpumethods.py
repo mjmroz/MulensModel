@@ -27,7 +27,9 @@ class BinaryLensTwinkleGpuMagnification(_BinaryLensPointSourceMagnification, _Li
         self._RelTol = self._parse_accuracy(RelTol)
 
         self._astrometry = False
+        
         self._twinkle = twinkle.Twinkle(self._Nsrcs, self._device_num, self._N_stream, self._RelTol, self._astrometry)
+        print(f"Initialized Twinkle with device_num={self._device_num}, N_stream={self._N_stream}, RelTol={self._RelTol}")
         self._magnification = np.empty(self._Nsrcs)
 
     def _parse_device_num(self, device_num):

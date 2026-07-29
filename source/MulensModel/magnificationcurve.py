@@ -42,7 +42,7 @@ class MagnificationCurve(object):
             the source that are used to calculate magnification values.
     """
 
-    def __init__(self, times, parameters, parallax=None,
+    def __init__(self, times, parameters, engines= None, parallax=None,
                  coords=None, satellite_skycoord=None, gamma=0.):
         # Set times
         self.times = np.atleast_1d(times)
@@ -63,6 +63,7 @@ class MagnificationCurve(object):
         # Initialize the magnification vector
         self._magnification = None
         self._magnification_objects = None
+        self._engines = engines
 
         # Set methods' variables:
         self._methods_epochs = None
@@ -282,7 +283,7 @@ class MagnificationCurve(object):
             else:
                 msg = 'Unknown method specified for single lens: {:}'
                 raise ValueError(msg.format(method))
-
+        print(f"Magnification objects set for methods: {self._magnification_objects}")
     def _set_point_lens_w_shear_magnification_objects(self):
         """ For point lens + shear models, create a *dict* of magnification
         objects corresponding to the user-specified magnification methods."""

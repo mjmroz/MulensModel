@@ -145,6 +145,8 @@ class MulensData(object):
         # Set up satellite properties (if applicable)
         self._ephemerides_file = ephemerides_file
         self._satellite_skycoord = None
+        # Setup for magnification calculation, speeding up Twinkle calculations
+        self.magnifications_setup = None
 
     def __repr__(self):
         name = self._get_name()

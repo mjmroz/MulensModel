@@ -174,10 +174,10 @@ class FitData(object):
 
         if self._model.n_sources == 1:
             self._data_magnification_curve = \
-                self._model.get_magnification_curve(time=self._dataset.time[select], **magnification_kwargs)
+                self._model.get_magnification_curve(time=self._dataset.time[select], magnifications_setup=self._dataset.magnifications_setup ,**magnification_kwargs)
         elif self._model.n_sources >= 2:
             self._data_magnification_curves = self._model.get_magnification_curves(
-                        time=self._dataset.time[select], **magnification_kwargs)
+                        time=self._dataset.time[select], magnifications_setup=self._dataset.magnifications_setup, **magnification_kwargs)
             for i in range(self._model.n_sources):
                 self.__setattr__('_data_magnification_curve_{0}'.format(i+1), self._data_magnification_curves[i])
 
