@@ -17,7 +17,7 @@ class BinaryLensTwinkleGpuMagnification(_BinaryLensPointSourceMagnification, _Li
             :py:class:`~MulensModel.modelparameters.ModelParameters`
     """
 
-    def __init__(self, gamma=None, u_limb_darkening=None, device_num=0, N_stream=1, RelTol=1e-3, ** kwargs):
+    def __init__(self, gamma=None, magnification_setup=None, device_num=0, N_stream=1, RelTol=1e-3, ** kwargs):
         super().__init__(**kwargs)
         self._set_LD_coeffs(u_limb_darkening=u_limb_darkening, gamma=gamma)
         self._set_and_check_rho()
@@ -27,9 +27,14 @@ class BinaryLensTwinkleGpuMagnification(_BinaryLensPointSourceMagnification, _Li
         self._RelTol = self._parse_accuracy(RelTol)
 
         self._astrometry = False
-        
-        self._twinkle = twinkle.Twinkle(self._Nsrcs, self._device_num, self._N_stream, self._RelTol, self._astrometry)
-        print(f"Initialized Twinkle with device_num={self._device_num}, N_stream={self._N_stream}, RelTol={self._RelTol}")
+        if magnification_setup is None:
+            magnification_setup = {}
+            magnification_setup[f'twinkle_{self._Nsrcs:d}'] = twinkle.Twinkle(
+                self._Nsrcs, self._device_num, self._N_stream, self._RelTol, self._astrometry)
+            print(
+                f"Initialized Twinkle with device_num={self._device_num}, N_stream={self._N_stream}, RelTol={self._RelTol}")
+
+        self._twinkle = magnification_setup[f'twinkle_{self._Nsrcs:d}']
         self._magnification = np.empty(self._Nsrcs)
 
     def _parse_device_num(self, device_num):

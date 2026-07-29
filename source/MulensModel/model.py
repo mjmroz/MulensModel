@@ -1392,18 +1392,18 @@ class Model(object):
 
         return magnification_curve
 
-    def _magnification_1_source(self, time, satellite_skycoord, gamma):
+    def _magnification_1_source(self, time, magnification_setup, satellite_skycoord, gamma):
         """
         calculate model magnification for given times for model with
         a single source
         """
         magnification_curve = self.get_magnification_curve(
-            time, satellite_skycoord, gamma)
+            time, magnification_setup, satellite_skycoord, gamma)
 
         return magnification_curve.get_magnification()
 
     def _magnification_N_sources(
-            self, time, satellite_skycoord, gamma, source_flux_ratio,
+            self, time, magnification_setup, satellite_skycoord, gamma, source_flux_ratio,
             separate):
         """
         calculate model magnification for given times for model with
@@ -1418,7 +1418,7 @@ class Model(object):
                 " parameters in Model.get_magnification(). This doesn't " +
                 'make sense')
 
-        mags = self._separate_magnifications(time, satellite_skycoord, gamma)
+        mags = self._separate_magnifications(time, magnification_setup, satellite_skycoord, gamma)
 
         if separate:
             return mags
@@ -1434,7 +1434,7 @@ class Model(object):
             magnification /= (1. + np.sum(source_flux_ratio))
             return magnification
 
-    def get_magnification_curves(self, time, satellite_skycoord, gamma):
+    def get_magnification_curves(self, time, magnification_setup, satellite_skycoord, gamma):
         """
         Create a *list* of
         :py:class:`~MulensModel.magnificationcurve.MagnificationCurve`
@@ -1443,6 +1443,9 @@ class Model(object):
         Parameters :
             time: *np.ndarray*, *list of floats*, or *float*
                 Times for which magnification values are requested.
+
+            magnification_setup: *dict*
+                Setup for magnification calculations.
 
             satellite_skycoord: *astropy.coordinates.SkyCoord*, optional
                 *SkyCoord* object that gives satellite positions. Must be
@@ -1458,7 +1461,7 @@ class Model(object):
             py:class:`~MulensModel.magnificationcurve.MagnificationCurve`
 
         """
-        kwargs = {'times': time, 'parallax': self._parallax,
+        kwargs = {'times': time, 'magnification_setup': magnification_setup, 'parallax': self._parallax,
                   'coords': self._coords,
                   'satellite_skycoord': satellite_skycoord, 'gamma': gamma}
 
@@ -1481,12 +1484,12 @@ class Model(object):
 
         return mag_curves
 
-    def _separate_magnifications(self, time, satellite_skycoord, gamma):
+    def _separate_magnifications(self, time, magnification_setup, satellite_skycoord, gamma):
         """
         Calculate magnification separately for each source.
         """
         mags = []
-        mag_curves = self.get_magnification_curves(time, satellite_skycoord, gamma)
+        mag_curves = self.get_magnification_curves(time, magnification_setup, satellite_skycoord, gamma)
         for i in range(self.n_sources):
             self.__setattr__('_magnification_curve_{0}'.format(i + 1), mag_curves[i])
             mag = self.__getattr__('_magnification_curve_{0}'.format(i + 1)).get_magnification()
