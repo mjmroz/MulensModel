@@ -67,9 +67,6 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
                 'bands used by the MIST models.'
             )
 
-
-class UlensModelFitEvolutionaryTracks(UlensModelFit):
-
     def imf_lnprior(self, mass, alpha_low=1.16, alpha_high=2.32, mass_break=0.9):
         """
         Apply a Kroupa-like broken IMF prior over the provided initial mass grid.
@@ -218,7 +215,7 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         else:
             self._set_bandpass()
         print(f'Using bands: {self._MIST_bandpass}')
-        brutus_data = os.environ['BRUTUS_DATA']
+        brutus_data = self._brutus_data
         gridfile = os.path.join(brutus_data,  'grid_mist_v9.h5')
         mistfile = os.path.join(brutus_data, 'MIST_1.2_EEPtrk.h5')
         nnfile = os.path.join(brutus_data, 'nn_c3k.h5')
@@ -229,8 +226,7 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         print(
             f'Brutus setup complete. Using grid file: {gridfile}, MIST file: {mistfile}, NN file: {nnfile},' +
             f' filters: {self._MIST_bandpass}')
-        self._loga_max = 13.  # Kpc
-        self._eep_max = 808  # default max EEP for MIST models.
+
         self._set_q_source_priors()
         self._set_other_parameters_priors()
         if 'q_source' in self._fit_parameters_unsorted:
@@ -305,7 +301,7 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         """
         Check if theta_E from xallarap and from rho is consistent.
         """
-        sigma = 0.1
+        sigma = self._sigma_theta_E_bound
         out = 0.
         theta_E_rho = self.sources_dict['source_1']['theta_E_rho']
         theta_E_xallarap = self.sources_dict['source_2']['theta_E_xi']
@@ -329,7 +325,7 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
             loga_max = self._loga_max
         mags, source_parameters1, source_parameters2 = self._star_track.get_seds(
             mini=mass_ini_S, feh=feh_S, eep=EEP_S,  av=AV_S, dist=distance_S,
-            smf=smf, loga_max=loga_max, eep_binary_max=self._eep_max, tol=1e-5, combine_seds=False)
+            smf=smf, loga_max=loga_max, eep_binary_max=self._eep_max, tol=self._brutus_tol, combine_seds=False)
         # print(f'mags={mags}, source_parameters1={source_parameters1}, source_parameters2={source_parameters2}')
         mags, failed = self._parce_brutus_mags(mags)
 
@@ -499,7 +495,6 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         bad = file_.pop("bad", None)
         ET_fit = file_.pop("ET_fit", False)
         _ = file_.pop("MIST_bandpass", None)
-
         try:
             dataset = mm.MulensData(**{**kwargs, **file_})
         except FileNotFoundError:
@@ -510,7 +505,6 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
             print('Something went wrong while reading file ' +
                   str(file_['file_name']), file=sys.stderr)
             raise
-
         if scaling is not None:
             dataset.scale_errorbars(**scaling)
         if bad is not None:
@@ -562,7 +556,6 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         """
         if value == -np.inf:
             n_source_params = self._model.n_sources * (len(self._parameters_star_aux) + 2)
-
             if self._reparametrized_MM_parameters_values is not None:
                 if self._return_fluxes:
                     return (value, [0.] * self._n_fluxes + [0.] * len(self._reparametrized_MM_parameters) +
@@ -576,7 +569,6 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
                     return (value, [0.] * n_source_params)
         else:
             sources_values = list(self.sources_values)
-
             if self._return_fluxes:
                 if fluxes is None:
                     raise ValueError('Unexpected error!')
@@ -688,30 +680,44 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         """
         Plot the track of the source in the Hertzsprung-Russell diagram.
         """
-        if len(self._MIST_bandpass) < 2:
-            print('Not enough bandpasses to plot the track.')
-            print('Setting to I and V bandpasses for plotting.')
-            self._setup_brutus(bandpass=['Bessell_I', 'Bessell_V'])
+        if self._plot_track_file is not None:
+            if len(self._MIST_bandpass) < 2:
+                print('Not enough bandpasses to plot the track.')
+                print('Setting to I and V bandpasses for plotting.')
+                self._setup_brutus(bandpass=['Bessell_I', 'Bessell_V'])
 
-        plt.figure(figsize=(10, 10))
+            plt.figure(figsize=(10, 10))
+            plt.xlabel('{:s} - {:s}'.format(self._MIST_bandpass[1], self._MIST_bandpass[0]))
+            plt.ylabel('{:s}'.format(self._MIST_bandpass[0]))
+
+            parameters_star = self._other_parameters_dict
+            if self._fixed_parameters is not None:
+                parameters_star = {**parameters_star, **self._fixed_parameters}
+
+            (mags, self._source_parameters, failed) = self._get_seds(self._best_model_theta, parameters_star)
+
+            colors = ['red', 'orange']
+            for (i, parameters) in enumerate(self._source_parameters):
+                plt.scatter(mags[self._MIST_bandpass[1]][i] - mags[self._MIST_bandpass[0]][i],
+                            mags[self._MIST_bandpass[0]][i], label=f'Source {i+1}', zorder=3,
+                            color=colors[i], alpha=0.8)
+            self.plot_whole_track(parameters_star)
+            self.plot_neighbourhood()
+            plt.gca().invert_yaxis()
+            plt.tight_layout()
+            plt.colorbar(label='EEP')
+            plt.title('EEP Track')
+            plt.legend()
+            file = self._plot_track_file
+            plt.savefig(file, dpi=300)
+
+    def plot_whole_track(self, parameters_star):
+        """
+        Plot the whole evolutionary track on the CMD
+        """
         eep_grid = np.linspace(202, 808, 500)
-
-        plt.xlabel('{:s} - {:s}'.format(self._MIST_bandpass[1], self._MIST_bandpass[0]))
-        plt.ylabel('{:s}'.format(self._MIST_bandpass[0]))
-
-        parameters_star = self._other_parameters_dict
-        if self._fixed_parameters is not None:
-            parameters_star = {**parameters_star, **self._fixed_parameters}
-
-        (mags, self._source_parameters, failed) = self._get_seds(self._best_model_theta, parameters_star)
-
-        colors = ['red', 'orange']
-        for (i, parameters) in enumerate(self._source_parameters):
-            plt.scatter(mags[self._MIST_bandpass[1]][i] - mags[self._MIST_bandpass[0]][i],
-                        mags[self._MIST_bandpass[0]][i], label=f'Source {i+1}', zorder=3,
-                        color=colors[i], alpha=0.8)
-
-        _all = np.full((self._model.n_sources, 3, len(eep_grid)), np.nan)
+        _all = np.full(
+            (self._model.n_sources, 3, len(eep_grid)), np.nan)
         for i, eep in enumerate(eep_grid):
             (mags, source_parameters, failed) = self._get_seds(self._best_model_theta,
                                                                parameters_star, EEP_S=eep, loga_max=20.)
@@ -723,24 +729,18 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         for j in range(self._model.n_sources):
             plt.scatter(_all[j][0], _all[j][1], c=_all[j][2], zorder=2, alpha=0.8)
 
-        self.plot_neighbourhood()
-        plt.gca().invert_yaxis()
-        plt.tight_layout()
-        plt.colorbar(label='EEP')
-        plt.title('EEP Track')
-        plt.legend()
-        file = self._plots['best model'].get('file')[:-4] + '_track.png'
-        plt.savefig(file, dpi=300)
-
     def plot_neighbourhood(self):
-
-        if photometric_map_file is None:
+        """
+        Plot the field stars in the CMD if a photometric map file is provided.
+        """
+        if self._photometric_map_file is None:
             print("""<photometric_map_file> is not set
 The color-magnitude diagram (CMD) will include only the evolutionary tracks and will not show field stars.
 To include field stars in the CMD, set photometric_map_file to a file containing field-star magnitudes
 in the same photometric bands used by the MIST models.""")
             return
-        data = np.genfromtxt(photometric_map_file, delimiter=',', names=True)
+
+        data = np.genfromtxt(self._photometric_map_file, delimiter=' ', names=True)
         plt.scatter(data[self._MIST_bandpass[1]] - data[self._MIST_bandpass[0]],
                     data[self._MIST_bandpass[0]], alpha=0.5, color='gray', s=0.1)
 
