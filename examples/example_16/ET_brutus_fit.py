@@ -1,18 +1,27 @@
+"""Code for fitting microlensing models with MIST evolutionary tracks using implemented in Brutus pagege.
+for more details see: Mróz, M.J. el al. 2025, https://doi.org/10.1051/0004-6361/202660534"""
 import os
 import sys
 import yaml
 import numpy as np
-import matplotlib.pyplot as plt
-from ulens_model_fit import UlensModelFit, import_failed
-import MulensModel as mm
+import math
+import shutil
 from copy import copy
-from astropy import units as u
-from brutus import EEPTracks
-from brutus.core import StarEvolTrack
+import matplotlib.pyplot as plt
+try:
+    from brutus import EEPTracks
+    from brutus.core import StarEvolTrack
+except ImportError:
+    print("Warning: Brutus is not installed. Please install Brutus to use evolutionary tracks fitting.")
+    print("see: https://github.com/joshspeagle/brutus")
+
+import MulensModel as mm
+from ulens_model_fit import UlensModelFit, import_failed
 
 R_sun_over_au = 4.650467260962158  # [1000 * R_sun/au]
 if os.environ.get('BRUTUS_DATA') is None:
-    raise ValueError('BRUTUS_DATA environment variable is not set. Please set it to the path of the Brutus grids directory.')
+    raise ValueError("BRUTUS_DATA environment variable is not set." +
+                     "Please set it to the path of the Brutus grids directory.")
 
 photometric_map_file = None
 if photometric_map_file is None:
@@ -26,6 +35,7 @@ if photometric_map_file is None:
         'file containing field-star magnitudes in the same photometric '
         'bands used by the MIST models.'
     )
+
 
 class UlensModelFitEvolutionaryTracks(UlensModelFit):
 
@@ -110,10 +120,10 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         """
         Calculate the Einstein radius from the isochrone model and rho
         """
-        #only primary source
+        # only primary source
         track = self._source_parameters[0]
         rho = self._model.parameters.parameters.get('rho_1', self._model.parameters.parameters.get('rho', 0.))
-        D_S = self._other_parameters_dict['D_S']
+        # D_S = self._other_parameters_dict['D_S']
         self._theta_E_rho = self._get_theta_star_from_isochrone(track) / rho   # [mas]
         # print(f'theta_E_rho={theta_E_rho}, rho={rho}, D_S={D_S}')
         return self._theta_E_rho
@@ -150,7 +160,7 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         self._reparametrized_MM_parameters_values = None
         self._reparametrized_MM_parameters = None
         super()._set_default_parameters()
-        self._other_parameters+=[
+        self._other_parameters += [
             'M_ini_S', 'M_ini_S_1', 'M_ini_S_2', 'EEP_S', 'EEP_S_1', 'EEP_S_2', 'age_S', 'feh_S', 'D_S', 'AV_S', 'q_S']
         self._latex_conversion_other.update({
             'M_ini_S': 'M_{\\rm{ini, S}}',
@@ -186,13 +196,15 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
             "mass", "logl", "loga", "logt", "logr", "logg", "feh_surf", "afe_surf"])
         self._star_track = StarEvolTrack(tracks=self._tracks, filters=self._MIST_bandpass, nnfile=nnfile)
         print(
-            f'Brutus setup complete. Using grid file: {gridfile}, MIST file: {mistfile}, NN file: {nnfile}, filters: {self._MIST_bandpass}')
-        self._loga_max = 13. # Kpc 
-        self._eep_max  = 808
+            f'Brutus setup complete. Using grid file: {gridfile}, MIST file: {mistfile}, NN file: {nnfile},' +
+            f' filters: {self._MIST_bandpass}')
+        self._loga_max = 13.  # Kpc
+        self._eep_max = 808  # default max EEP for MIST models.
         self._set_q_source_priors()
         self._set_other_parameters_priors()
         if 'q_source' in self._fit_parameters_unsorted:
-            self._fixed_parameters['rho_2'] = 0.1 # trick to avoide error of MulensModel check, In the fititng process it will be set from ET models
+            # trick to avoid error of MulensModel check, In the fitting process it will be set from ET models
+            self._fixed_parameters['rho_2'] = 0.1
 
     def _set_bandpass(self):
         """
@@ -227,8 +239,8 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         """
         # optional priors for other parameters
         self._other_parameters_prior = {
-            #'M_int_S':  self.imf_lnprior, 
-            #'feh_S': self.feh_lnprior,
+            # 'M_int_S':  self.imf_lnprior,
+            # 'feh_S': self.feh_lnprior,
         }
         if self._q_S_model_prior:
             # Gaussian prior for q_S
@@ -246,14 +258,14 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         this case the change of ln_prob is coded in _ln_like().
         """
         out = 0.
-        #out = super()._get_ln_probability_for_other_parameters()
+        # out = super()._get_ln_probability_for_other_parameters()
 
         if self._other_parameters_prior is not None:
             for key, prior in self._other_parameters_prior.items():
                 if key in self._other_parameters_dict:
                     value = self._other_parameters_dict[key]
                     out += prior(value)
-                   # print('other prior', key, value, out)
+                    # print('other prior', key, value, out)
         if self._use_theta_E_bound and 'q_source' in self._fit_parameters:
             out += self._theta_E_bound()
         return out
@@ -266,14 +278,13 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         out = 0.
         theta_E_rho = self.sources_dict['source_1']['theta_E_rho']
         theta_E_xallarap = self.sources_dict['source_2']['theta_E_xi']
-        print(f'theta_E_rho={theta_E_rho}, theta_E_xallarap={theta_E_xallarap}')
+        # print(f'theta_E_rho={theta_E_rho}, theta_E_xallarap={theta_E_xallarap}')
         out += self._get_ln_prior_for_1_parameter(theta_E_rho, ['gauss', theta_E_xallarap, sigma])
-        print(f'theta_E_rho={theta_E_rho}, theta_E_xallarap={theta_E_xallarap}, out={out}')
+        # print(f'theta_E_rho={theta_E_rho}, theta_E_xallarap={theta_E_xallarap}, out={out}')
         return out
 
     def _get_seds(self, theta, parameters_star, EEP_S=None, loga_max=None):
         """when q_source is fitted it predicts the secondary EEP """
-        failed = False
         parameters = dict(zip(self._fit_parameters, theta))
         smf = parameters.get('q_source', 0.0)
 
@@ -288,44 +299,43 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         mags, source_parameters1, source_parameters2 = self._star_track.get_seds(
             mini=mass_ini_S, feh=feh_S, eep=EEP_S,  av=AV_S, dist=distance_S,
             smf=smf, loga_max=loga_max, eep_binary_max=self._eep_max, tol=1e-5, combine_seds=False)
-        print(f'mags={mags}, source_parameters1={source_parameters1}, source_parameters2={source_parameters2}')
-        mags = self._parce_brutus_mags(mags)
-        # try:
-        #     mags = {key: [mags[j][i] for j in range(self._model.n_sources)] for i, key in enumerate(self._MIST_bandpass)}
-        # except Exception as e:
-        #     print(f'Error while processing Brutus magnitudes: {e}')
-        #     failed = True
-        #     mags = {key: [np.nan for j in range(self._model.n_sources)] for i, key in enumerate(self._MIST_bandpass)}
-        #     print(mags, 'failed exception')
+        # print(f'mags={mags}, source_parameters1={source_parameters1}, source_parameters2={source_parameters2}')
+        mags, failed = self._parce_brutus_mags(mags)
 
         if np.all([np.isnan(mags[key]).all() for key in mags]):
             failed = True
-            print(mags, 'failed all nan')  
+            # print(mags, 'failed all nan')
         if self._model.n_sources == 2:
-            return (mags,[source_parameters1, source_parameters2], failed)
+            return (mags, [source_parameters1, source_parameters2], failed)
         else:
-            return (mags,[source_parameters1], failed)
+            return (mags, [source_parameters1], failed)
 
     def _parce_brutus_mags(self, mags):
         """
         Check if the Brutus magnitudes are valid.
-        """ 
-        print(f'Brutus magnitudes before check: {mags}')
-        mags_dict={}
-        if self._model.n_sources == 1:
-            if mags is np.nan:
-                mags = [np.nan for i in range(len(self._MIST_bandpass))]
+        """
+        # print(f'Brutus magnitudes before check: {mags}')
+        mags_dict = {}
+        failed = False
+        try:
+            if self._model.n_sources == 1:
+                if mags is np.nan:
+                    mags = [np.nan for i in range(len(self._MIST_bandpass))]
 
-            if len(mags) != len(self._MIST_bandpass):
-                raise ValueError(f'Brutus returned {len(mags)} magnitudes, but {len(self._MIST_bandpass)} were expected.')
-            mags = [[m] for m in mags]
-            mags_dict =dict(zip(self._MIST_bandpass, mags))
-        if self._model.n_sources == 2:
-            mags_dict = {key: [mags[j][i] for j in range(
-                self._model.n_sources)] for i, key in enumerate(self._MIST_bandpass)}
-                    
-        print(f'Brutus magnitudes: {mags_dict}')
-        return mags_dict
+                if len(mags) != len(self._MIST_bandpass):
+                    raise ValueError(f'Brutus returned {len(mags)} magnitudes,' +
+                                     f' but {len(self._MIST_bandpass)} were expected.')
+                mags = [[m] for m in mags]
+                mags_dict = dict(zip(self._MIST_bandpass, mags))
+            if self._model.n_sources == 2:
+                mags_dict = {key: [mags[j][i] for j in range(
+                    self._model.n_sources)] for i, key in enumerate(self._MIST_bandpass)}
+        except Exception as e:
+            print(f'Error while parsing Brutus magnitudes: {e}')
+            failed = True
+        # print(f'Brutus magnitudes: {mags_dict}')
+        return mags_dict, failed
+
     def _ln_like(self, theta):
         """
         likelihood function
@@ -333,9 +343,9 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         self._set_model_parameters(theta)
         parameters_star = self._other_parameters_dict
 
-        #print(parameters_star, '\n')
+        # print(parameters_star, '\n')
         (mags, self._source_parameters, failed) = self._get_seds(theta, parameters_star)
-        #print(mags)
+        # print(mags)
         if failed:
             return -np.inf
         self._set_q_source()
@@ -344,13 +354,14 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
             self._set_rho_2_from_isochrone()
 
         fix_source_flux = self._get_fix_source_flux(mags)
-        print(f'fix_source_flux: {fix_source_flux}\n')
+        # print(f'fix_source_flux: {fix_source_flux}\n')
         fix_blend_flux = self._check_blend_fluxes(fix_source_flux)
-        print(f'fix_blend_flux: {fix_blend_flux}\n')
-        self._event = mm.Event(self._datasets, self._model, fix_source_flux=fix_source_flux, fix_blend_flux=fix_blend_flux)
-        print(f'self._event={self._event}\n')
+        # print(f'fix_blend_flux: {fix_blend_flux}\n')
+        self._event = mm.Event(self._datasets, self._model, fix_source_flux=fix_source_flux,
+                               fix_blend_flux=fix_blend_flux)
+        # print(f'self._event={self._event}\n')
         self._event.sum_function = 'numpy.sum'
-        #self._set_n_fluxes()
+        # self._set_n_fluxes()
 
         chi2 = self._event.get_chi2()
         out = -0.5 * chi2
@@ -371,16 +382,16 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         Set source parameters based on isochrone models.
         """
         self.sources_dict = {}
-        self.sources_values =[]
-        for i , track in enumerate(self._source_parameters):    
+        self.sources_values = []
+        for i, track in enumerate(self._source_parameters):
             self.sources_dict[f'source_{i+1}'] = {}
-            self.sources_dict[f'source_{i+1}']['theta_star']= self._get_theta_star_from_isochrone(track)
+            self.sources_dict[f'source_{i+1}']['theta_star'] = self._get_theta_star_from_isochrone(track)
             self.sources_values.append(self.sources_dict[f'source_{i+1}']['theta_star'])
-            if i == 0: 
-                self.sources_dict[f'source_{i+1}']['theta_E_rho'] = self._get_theta_E_from_rho_and_isochrone()  #[mas] 
-                self.sources_values.append(self.sources_dict[f'source_{i+1}']['theta_E_rho'])     
+            if i == 0:
+                self.sources_dict[f'source_{i+1}']['theta_E_rho'] = self._get_theta_E_from_rho_and_isochrone()  # [mas]
+                self.sources_values.append(self.sources_dict[f'source_{i+1}']['theta_E_rho'])
             if i == 1 and 'q_source' in self._fit_parameters:
-                self.sources_dict[f'source_{i+1}']['theta_E_xi'] = self._get_theta_E_from_xallarap_and_isochrone()  #[mas]
+                self.sources_dict[f'source_{i+1}']['theta_E_xi'] = self._get_theta_E_from_xallarap_and_isochrone()
                 self.sources_values.append(self.sources_dict[f'source_{i+1}']['theta_E_xi'])
             for key in self._parameters_star_aux:
                 self.sources_dict[f'source_{i+1}'][key] = track[key]
@@ -401,7 +412,7 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
             q = self._model.parameters.parameters['q_source']
             self._other_parameters_dict['q_S'] = q
         if self._model.n_sources == 2:
-            q = self._source_parameters[1]['mass']/self._source_parameters[0]['mass']
+            q = self._source_parameters[1]['mass'] / self._source_parameters[0]['mass']
             self._fixed_parameters['q_source'] = q
             self._other_parameters_dict['q_S'] = q
             setattr(self._model.parameters, 'q_source', q)
@@ -417,8 +428,9 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
             for i, dataset in enumerate(self._datasets):
                 if self._ET_fit[i]:
                     fix_source_flux[dataset] = [
-                        self._get_flux_from_mag_safe(mags[self._MIST_bandpass[i]][0]), self._get_flux_from_mag_safe(mags[self._MIST_bandpass[i]][1])]
-                    print('fix_source_flux ', dataset.plot_properties['label'], fix_source_flux[dataset])
+                        self._get_flux_from_mag_safe(mags[self._MIST_bandpass[i]][0]),
+                        self._get_flux_from_mag_safe(mags[self._MIST_bandpass[i]][1])]
+                    # print('fix_source_flux ', dataset.plot_properties['label'], fix_source_flux[dataset])
         return fix_source_flux
 
     def _check_blend_fluxes(self, fix_source_flux):
@@ -444,7 +456,7 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         """
         construct a list of MulensModel.MulensData objects
         """
-        self._ET_fit=[]
+        self._ET_fit = []
         super()._get_datasets()
 
     def _get_1_dataset(self, file_, kwargs):
@@ -455,7 +467,7 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         _ = file_.pop("fit_errorbars", None)
         bad = file_.pop("bad", None)
         ET_fit = file_.pop("ET_fit", False)
-        MIST_band = file_.pop("MIST_bandpass", None)
+        _ = file_.pop("MIST_bandpass", None)
 
         try:
             dataset = mm.MulensData(**{**kwargs, **file_})
@@ -495,7 +507,7 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         if self._fixed_parameters is not None:
             parameters_star = {**parameters_star, **self._fixed_parameters}
 
-        (mags, self._source_parameters, failed) = self._get_seds(self._best_model_theta,parameters_star)
+        (mags, self._source_parameters, failed) = self._get_seds(self._best_model_theta, parameters_star)
 
         for (i, parameters) in enumerate(self._source_parameters):
             yaml_txt += (begin + "  Source_{:d}:\n").format(i+1)
@@ -518,24 +530,25 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         shorter
         """
         if value == -np.inf:
-            n_source_params = self._model.n_sources * (len(self._parameters_star_aux) +2 )
+            n_source_params = self._model.n_sources * (len(self._parameters_star_aux) + 2)
 
             if self._reparametrized_MM_parameters_values is not None:
                 if self._return_fluxes:
-                    return (value, [0.] * self._n_fluxes + [0.] * len(self._reparametrized_MM_parameters) + [0.] * n_source_params)
+                    return (value, [0.] * self._n_fluxes + [0.] * len(self._reparametrized_MM_parameters) +
+                            [0.] * n_source_params)
                 else:
-                    return (value, [0.] * len(self._reparametrized_MM_parameters)+  [0.] * n_source_params)
-            else: 
+                    return (value, [0.] * len(self._reparametrized_MM_parameters) + [0.] * n_source_params)
+            else:
                 if self._return_fluxes:
                     return (value, [0.] * self._n_fluxes + [0.] * n_source_params)
                 else:
-                    return (value,  [0.] * n_source_params)
+                    return (value, [0.] * n_source_params)
         else:
             sources_values = list(self.sources_values)
 
             if self._return_fluxes:
                 if fluxes is None:
-                            raise ValueError('Unexpected error!')
+                    raise ValueError('Unexpected error!')
                 if self._reparametrized_MM_parameters_values is not None:
                     return (value, fluxes + self._reparametrized_MM_parameters_values + sources_values)
                 else:
@@ -551,11 +564,11 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         prepare values to be printed for EMCEE fitting
         """
         if self._reparametrized_MM_parameters is None:
-            n_reparametrized_MM_parameters=0
+            n_reparametrized_MM_parameters = 0
         else:
-            n_reparametrized_MM_parameters=len(self._reparametrized_MM_parameters)
+            n_reparametrized_MM_parameters = len(self._reparametrized_MM_parameters)
         try:
-            blob_samples = np.array(self._sampler.get_blobs(flat = True, discard = self._fitting_parameters['n_burn']))
+            blob_samples = np.array(self._sampler.get_blobs(flat=True, discard=self._fitting_parameters['n_burn']))
         except Exception as exception:
             raise ValueError('There was some issue with blobs:\n' +
                              str(exception))
@@ -573,7 +586,7 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
         max_iteration = 20 * self._n_walkers
         if self._fit_constraints["no_negative_blending_flux"]:
             max_iteration *= 5
-        max_iteration *= 5 # extra factor for EPP
+        max_iteration *= 5  # extra factor for EPP
         starting = []
         for parameter in self._fit_parameters:
             settings = self._starting_parameters[parameter]
@@ -610,7 +623,7 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
                 shutil.rmtree(self._kwargs_MultiNest['outputfiles_basename'],
                               ignore_errors=True)
 
-    def _parse_sources(self):
+    def _parse_sources(self, mode=None):
         """
         Printing results for source parameters from isochrone models
         """
@@ -661,22 +674,24 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
 
         (mags, self._source_parameters, failed) = self._get_seds(self._best_model_theta, parameters_star)
 
-        colors = ['red', 'orange'] 
+        colors = ['red', 'orange']
         for (i, parameters) in enumerate(self._source_parameters):
-            plt.scatter(mags[self._MIST_bandpass[1]][i] - mags[self._MIST_bandpass[0]][i], mags[self._MIST_bandpass[0]][i], label=f'Source {i+1}', zorder=3,
+            plt.scatter(mags[self._MIST_bandpass[1]][i] - mags[self._MIST_bandpass[0]][i],
+                        mags[self._MIST_bandpass[0]][i], label=f'Source {i+1}', zorder=3,
                         color=colors[i], alpha=0.8)
 
-        _all = np.full((self._model.n_sources, 3 , len(eep_grid)), np.nan)
+        _all = np.full((self._model.n_sources, 3, len(eep_grid)), np.nan)
         for i, eep in enumerate(eep_grid):
-            (mags, source_parameters, failed) = self._get_seds(self._best_model_theta, parameters_star, EEP_S=eep, loga_max=20.)
+            (mags, source_parameters, failed) = self._get_seds(self._best_model_theta,
+                                                               parameters_star, EEP_S=eep, loga_max=20.)
             for j in range(self._model.n_sources):
                 if not np.isnan(mags[self._MIST_bandpass[1]][j]) and not np.isnan(mags[self._MIST_bandpass[0]][j]):
-                    _all[j][0][i]= mags[self._MIST_bandpass[1]][j] - mags[self._MIST_bandpass[0]][j]
-                    _all[j][1][i]= mags[self._MIST_bandpass[0]][j]
-                    _all[j][2][i]= eep
+                    _all[j][0][i] = mags[self._MIST_bandpass[1]][j] - mags[self._MIST_bandpass[0]][j]
+                    _all[j][1][i] = mags[self._MIST_bandpass[0]][j]
+                    _all[j][2][i] = eep
         for j in range(self._model.n_sources):
-                plt.scatter(_all[j][0], _all[j][1], c=_all[j][2], zorder=2, alpha=0.8)
-        #plt.plot(mags[self._MIST_bandpass[1]] - mags[self._MIST_bandpass[0]], mags[self._MIST_bandpass[0]], color='gray', lw=1, alpha=0.7, zorder=1)
+            plt.scatter(_all[j][0], _all[j][1], c=_all[j][2], zorder=2, alpha=0.8)
+
         self.plot_neighbourhood()
         plt.gca().invert_yaxis()
         plt.tight_layout()
@@ -689,12 +704,14 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
     def plot_neighbourhood(self):
 
         if photometric_map_file is None:
-            print('photometric_map_file is not set. The color-magnitude diagram (CMD) will include only the evolutionary tracks and will not show field stars.')
-            print('To include field stars in the CMD, set photometric_map_file to a file containing field-star magnitudes in the same photometric bands used by the MIST models.')
+            print("""<photometric_map_file> is not set
+The color-magnitude diagram (CMD) will include only the evolutionary tracks and will not show field stars.
+To include field stars in the CMD, set photometric_map_file to a file containing field-star magnitudes
+in the same photometric bands used by the MIST models.""")
             return
         data = np.genfromtxt(photometric_map_file, delimiter=',', names=True)
-        plt.scatter(data[self._MIST_bandpass[1]] - data[self._MIST_bandpass[0]], data[self._MIST_bandpass[0]], alpha=0.5, color='gray', s=0.1)
-
+        plt.scatter(data[self._MIST_bandpass[1]] - data[self._MIST_bandpass[0]],
+                    data[self._MIST_bandpass[0]], alpha=0.5, color='gray', s=0.1)
 
     def run_fit(self):
         """
@@ -722,7 +739,7 @@ class UlensModelFitEvolutionaryTracks(UlensModelFit):
             self._parse_starting_parameters()
 
         self._check_fixed_parameters()
-        #self._parse_degeneracy()  #if AD used
+        # self._parse_degeneracy()  #if AD used
         self._make_model_and_event()
         self._parse_fitting_parameters()
         self._parse_fit_constraints()
