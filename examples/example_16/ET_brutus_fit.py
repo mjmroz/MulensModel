@@ -19,22 +19,53 @@ import MulensModel as mm
 from ulens_model_fit import UlensModelFit, import_failed
 
 R_sun_over_au = 4.650467260962158  # [1000 * R_sun/au]
-if os.environ.get('BRUTUS_DATA') is None:
-    raise ValueError("BRUTUS_DATA environment variable is not set." +
-                     "Please set it to the path of the Brutus grids directory.")
 
-photometric_map_file = None
-if photometric_map_file is None:
-    print(
-        'Warning: photometric_map_file is not set. The color-magnitude '
-        'diagram (CMD) will include only the evolutionary tracks and will '
-        'not show field stars.'
-    )
-    print(
-        'To include field stars in the CMD, set photometric_map_file to a '
-        'file containing field-star magnitudes in the same photometric '
-        'bands used by the MIST models.'
-    )
+
+class UlensModelFitEvolutionaryTracks(UlensModelFit):
+    def __init__(self, photometry_files, evolutionary_tracks=None, starting_parameters=None, prior_limits=None,
+                 model=None, fixed_parameters=None, extra_parameters=None, min_values=None, max_values=None,
+                 fitting_parameters=None, fit_constraints=None, plots=None, other_output=None, fit_method=None):
+        self._plot_track_file = plots.pop('track', {}).get('file') if plots is not None else None
+        self._parce_brutus_settings(evolutionary_tracks)
+        super().__init__(photometry_files=photometry_files, starting_parameters=starting_parameters,
+                         prior_limits=prior_limits, model=model, fixed_parameters=fixed_parameters,
+                         extra_parameters=extra_parameters, min_values=min_values, max_values=max_values,
+                         fitting_parameters=fitting_parameters, fit_constraints=fit_constraints,
+                         plots=plots, other_output=other_output, fit_method=fit_method)
+
+    def _parce_brutus_settings(self, evolutionary_tracks):
+        """Read and check the Brutus settings from the YAML file."""
+        self._brutus_data = None
+        self._photometric_map_file = None
+        self._loga_max = 13.  # Kpc
+        self._eep_max = 808
+        self._brutus_tol = 1e-5
+        self._sigma_theta_E_bound = 0.1  # mas
+        if evolutionary_tracks is not None:
+            self._brutus_data = evolutionary_tracks.get('brutus_data', None)
+            self._loga_max = float(evolutionary_tracks.get('loga_max', 13.))
+            self._eep_max = float(evolutionary_tracks.get('eep_max', 808))
+            self._brutus_tol = float(evolutionary_tracks.get('tol', 1e-5))
+            self._sigma_theta_E_bound = float(evolutionary_tracks.get('sigma_theta_E_bound', 0.1))
+            self._photometric_map_file = evolutionary_tracks.get('photometric_map_file', None)
+
+        if self._brutus_data is None:
+            self._brutus_data = os.environ.get('BRUTUS_DATA', None)
+        if self._brutus_data is None:
+            raise ValueError("BRUTUS_DATA environment variable is not set. Please set it to the path" +
+                             " of the Brutus grids directory or define it in the input YAML file.")
+
+        if self._photometric_map_file is None:
+            print(
+                'Warning: photometric_map_file is not set. The color-magnitude '
+                'diagram (CMD) will include only the evolutionary tracks and will '
+                'not show field stars.'
+            )
+            print(
+                'To include field stars in the CMD, set photometric_map_file to a '
+                'file containing field-star magnitudes in the same photometric '
+                'bands used by the MIST models.'
+            )
 
 
 class UlensModelFitEvolutionaryTracks(UlensModelFit):
