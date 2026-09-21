@@ -1362,7 +1362,7 @@ class Model(object):
 
         return magnification
 
-    def get_magnification_curve(self, time, satellite_skycoord, gamma):
+    def get_magnification_curve(self, time, magnification_setup, satellite_skycoord, gamma):
         """
         Create a :py:class:`~MulensModel.magnificationcurve.MagnificationCurve`
         object for a given set of times.
@@ -1370,6 +1370,9 @@ class Model(object):
         Parameters :
             time: *np.ndarray*, *list of floats*, or *float*
                 Times for which magnification values are requested.
+
+            magnification_setup: *dict*
+                Setup for magnification calculation.
 
             satellite_skycoord: *astropy.coordinates.SkyCoord*, optional
                 *SkyCoord* object that gives satellite positions. Must be

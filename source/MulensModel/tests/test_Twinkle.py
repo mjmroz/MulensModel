@@ -1,9 +1,14 @@
+import sys
 import time
+import types
 
 from numpy.testing import assert_almost_equal
 import numpy as np
 import matplotlib.pyplot as plt
 from MulensModel.model import Model
+from MulensModel.event import Event
+from MulensModel.mulensdata import MulensData
+from MulensModel.fitdata import FitData
 
 
 def test_VBM_vs_Twinkle():
@@ -62,6 +67,21 @@ def test_VBM_vs_Twinkle():
     return 'git'
 
 
+def test_dataset_keeps_twinkle_setup():
+
+    dataset = MulensData([[0.0, 1.0], [1.0, 1.0], [0.1, 0.1]])
+    model = Model(parameters={'s': 2, 'q': 1, 'u_0': 0.006, 'alpha': np.degrees(3.212), 'rho': 0.0567,
+                             't_E': 50.13, 't_0': 0})
+    model.default_magnification_method = 'Twinkle'
+
+    event = Event(model=model, datasets=dataset)
+    event.get_chi2()
+    print("Magnification setup after event.get_chi2():", dataset.magnification_setup)
+    assert dataset.magnification_setup is not None
+
+
+
 if __name__ == '__main__':
     plot = False
+    test_dataset_keeps_twinkle_setup()
     test_VBM_vs_Twinkle()

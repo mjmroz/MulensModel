@@ -42,7 +42,7 @@ class MagnificationCurve(object):
             the source that are used to calculate magnification values.
     """
 
-    def __init__(self, times, parameters, magnification_setup=None, parallax=None,
+    def __init__(self, times, parameters, magnification_setup={}, parallax=None,
                  coords=None, satellite_skycoord=None, gamma=0.):
         # Set times
         self.times = np.atleast_1d(times)

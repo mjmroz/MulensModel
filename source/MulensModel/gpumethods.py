@@ -17,7 +17,7 @@ class BinaryLensTwinkleGpuMagnification(_BinaryLensPointSourceMagnification, _Li
             :py:class:`~MulensModel.modelparameters.ModelParameters`
     """
 
-    def __init__(self, gamma=None, magnification_setup=None, device_num=0, N_stream=1, RelTol=1e-3, ** kwargs):
+    def __init__(self, gamma=None, u_limb_darkening=None, magnification_setup={}, device_num=0, N_stream=1, RelTol=1e-3, ** kwargs):
         super().__init__(**kwargs)
         self._set_LD_coeffs(u_limb_darkening=u_limb_darkening, gamma=gamma)
         self._set_and_check_rho()
@@ -27,12 +27,15 @@ class BinaryLensTwinkleGpuMagnification(_BinaryLensPointSourceMagnification, _Li
         self._RelTol = self._parse_accuracy(RelTol)
 
         self._astrometry = False
-        if magnification_setup is None:
-            magnification_setup = {}
+        
+        key = f'twinkle_{self._Nsrcs:d}'
+        if key not in magnification_setup:
             magnification_setup[f'twinkle_{self._Nsrcs:d}'] = twinkle.Twinkle(
                 self._Nsrcs, self._device_num, self._N_stream, self._RelTol, self._astrometry)
             print(
                 f"Initialized Twinkle with device_num={self._device_num}, N_stream={self._N_stream}, RelTol={self._RelTol}")
+            print("If this message appears more than a few times, it means that the Twinkle object is being re-initialized." +
+                  "This will slow down the calculations, and most likely is due to reinitializing the MulensData object.")
 
         self._twinkle = magnification_setup[f'twinkle_{self._Nsrcs:d}']
         self._magnification = np.empty(self._Nsrcs)
@@ -46,33 +49,8 @@ class BinaryLensTwinkleGpuMagnification(_BinaryLensPointSourceMagnification, _Li
             raise TypeError("device_num must be an integer.")
         if device_num < 0:
             raise ValueError("device_num must be a non-negative integer.")
-        device_count = self._get_gpu_device_count()
-        if device_num >= device_count:
-            raise ValueError(
-                f"device_num must reference an available GPU device; got {device_num}, "
-                f"but only {device_count} device(s) are available."
-            )
         return device_num
 
-    @staticmethod
-    def _get_gpu_device_count():
-        """
-        Return the number of CUDA GPU devices available on this machine.
-        """
-        for library_name in (find_library("cudart"), "libcudart.so", "libcudart.so.12", "libcudart.so.11"):
-            if not library_name:
-                continue
-            try:
-                cudart = ctypes.CDLL(library_name)
-            except OSError:
-                continue
-
-            device_count = ctypes.c_int()
-            cuda_error = cudart.cudaGetDeviceCount(ctypes.byref(device_count))
-            if cuda_error == 0:
-                return device_count.value
-
-        raise RuntimeError("CUDA runtime is not available, so GPU device_num cannot be validated.")
 
     def _parse_N_stream(self, N_stream):
         """
